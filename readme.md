@@ -28,7 +28,7 @@ It is perfectly possible to use cmake directly instead, as long as you set the f
 
 ## Running
 When executing the compiled assembler binary, you will need to copy the items present in the project's `libraries` folder otherwise you will end up with an error on boot about missing libraries. After that's done, you should be greeted with a screen similar to this (after executing the `--help` command).
-![](output.png =800x)
+![](output.png?raw=true =800x)
 ## Commands
 `assembler` can be used in 2 modes, either directly by starting up the binary, or by invoking it from another command line tool and sending it arguments. When unsure what to do, write `--help` or `-h`, and information will be printed on the current actions that can be done. To quit, write `--quit` or `-q`.
 

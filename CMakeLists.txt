@@ -3,7 +3,6 @@ set(PROJECT_ASSEMBLER assembler CACHE INTERNAL "")
 set(LOCAL_PROJECT ${PROJECT_ASSEMBLER})
 project(${LOCAL_PROJECT} VERSION 1.0.0 LANGUAGES CXX)
 
-
 # -------------------------------------------------------------------------------------------------
 # Assimp setup
 # -------------------------------------------------------------------------------------------------
@@ -24,7 +23,7 @@ endif()
 
 # we don't care to deploy on non-static platforms, as we are just building a toolchain, not
 # the actual binary.
-set(VULKAN_STATIC true)
+set(VK_STATIC true)
 # required call to get the paradigm engine core here, and setting up the compile defines
 include(paradigm.txt)
 
@@ -56,8 +55,11 @@ if(VS_ADD_NATIVE_VISUALIZERS)
 endif()
 
 add_executable(${LOCAL_PROJECT} ${INC} ${SRC} ${GENERATOR_INFORMATION} ${NATVIS})
-set(_PCH_SOURCE_CXX "src/stdafx.cpp")
-add_precompiled_header(${LOCAL_PROJECT} "stdafx.h")
+
+if(PE_PCH AND MSVC)
+	set_target_properties(${LOCAL_PROJECT} PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "inc/stdafx.h")
+	cotire(${LOCAL_PROJECT})
+endif()
 
 set_property(TARGET ${LOCAL_PROJECT} PROPERTY FOLDER "tools")
 

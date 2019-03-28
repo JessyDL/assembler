@@ -104,7 +104,10 @@ if not os.path.exists(os.path.join(project_dir, "CMakeFiles")):
     print("generating project files")
     if args.vk_static:
         vk_static = "ON"
-    cmakeCmd = ["cmake.exe", "-G", cmake_generator, "-DPE_BUILD_DIR="+build_dir, "-DVK_VERSION="+args.vk_version, "-DVK_ROOT="+args.vk_root, "-DVK_STATIC="+vk_static] + args.cmake_params + [ "-H"+ args.root_dir, "-B"+project_dir]
+    cmakeCmd = ["cmake.exe", "-G", cmake_generator, "-DPE_BUILD_DIR="+build_dir, "-DVK_VERSION="+args.vk_version, "-DVK_ROOT="+args.vk_root, "-DVK_STATIC="+vk_static]
+    if args.cmake_params:
+        cmakeCmd = cmakeCmd + args.cmake_params
+    cmakeCmd = cmakeCmd + [ "-H"+ args.root_dir, "-B"+project_dir]
     retCode = subprocess.check_call(cmakeCmd, shell=sys.platform.startswith('win'))
 elif args.cmake_update:
     cmakeCmd = ["cmake.exe", r"."] + args.cmake_params

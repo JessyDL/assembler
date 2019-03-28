@@ -11,6 +11,7 @@
 
 #include <io.h>
 #include <fcntl.h>
+#include "cli/value.h"
 
 BOOL CtrlHandler(DWORD fdwCtrlType)
 {
@@ -67,10 +68,17 @@ int main(int argc, char* argv[])
 	// psl::cout << x2 << _T(" ") << x3 << " " << x4 << std::endl;
 	
 	{
-		psl::cout << _T("welcome to assembler, use -h or --help to get information on the commands.") << std::endl;
+		psl::cout << _T("welcome to assembler, use -h or --help to get information on the commands. ") << res << std::endl;
 		psl::string arg;
 	}
 
-
-	return 0;
+	psl::cli::value<int> int_v{"int value", { "i", "integer" }, 5};
+	auto x = int_v.get_shared();
+	*x = 10;
+	auto y = int_v.get();
+	if(int_v.contains_command("i"))
+	{
+		return 0;
+	}
+	return 1;
 }

@@ -85,8 +85,7 @@ namespace psl::cli
 				m_Value = std::make_shared<T>(*m_Default.value());
 			}
 
-			if(!m_Value)
-				throw std::runtime_error("no value found");
+			if(!m_Value) throw std::runtime_error("no value found");
 
 			return m_Value.value();
 		}
@@ -105,16 +104,47 @@ namespace psl::cli
 
 		void clear() { m_Value = std::nullopt; }
 
-		void set_default(const T& val)
-		{
-			m_Default = std::make_shared<T>(val);
-		}
-		void set_default(std::shared_ptr<T>& val)
-		{
-			m_Default = val;
-		}
+		void set_default(const T& val) { m_Default = std::make_shared<T>(val); }
+		void set_default(std::shared_ptr<T>& val) { m_Default = val; }
+
 	  private:
 		std::optional<std::shared_ptr<T>> m_Value;
 		std::optional<std::shared_ptr<T>> m_Default;
+	};
+
+	class pack final
+	{
+	  public:
+		template <typename... Ts>
+		pack(Ts&&... values)
+		{
+			(add(std::forward<Ts>(values)), ...);
+		}
+
+		auto begin() noexcept { return std::begin(m_Values); }
+		auto end() noexcept { return std::end(m_Values); }
+		auto cbegin() const noexcept { return std::cbegin(m_Values); }
+		auto cend() const noexcept { return std::cend(m_Values); }
+
+	  private:
+		template <typename T>
+		void add(std::shared_ptr<value<T>>& val)
+		{
+			m_Values.emplace_back(val);
+		}
+
+
+		template <typename T>
+		void add(value<T>&& val)
+		{
+			m_Values.emplace_back(std::make_shared<value<T>>(std::move(val)));
+		}
+
+		template <typename T>
+		void add(const value<T>& val)
+		{
+			m_Values.emplace_back(std::make_shared<value<T>>(val));
+		}
+		psl::array<std::shared_ptr<details::value_base>> m_Values;
 	};
 } // namespace psl::cli

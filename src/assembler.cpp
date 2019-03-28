@@ -72,11 +72,16 @@ int main(int argc, char* argv[])
 		psl::string arg;
 	}
 
-	psl::cli::value<int> int_v{"int value", { "i", "integer" }, 5};
-	auto x = int_v.get_shared();
+	std::shared_ptr<psl::cli::value<int>> int_v { new psl::cli::value<int>("int value", { "i", "integer" }, 5)};
+	auto x = int_v->get_shared();
 	*x = 10;
-	auto y = int_v.get();
-	if(int_v.contains_command("i"))
+	auto y = int_v->get();
+
+	auto& v = *int_v;
+	psl::cli::pack p{psl::cli::value<int>{"int value", {"i"}, 7}, *int_v, int_v};
+
+	*x = 2;
+	if(int_v->contains_command("i"))
 	{
 		return 0;
 	}

@@ -13,6 +13,9 @@
 #include <fcntl.h>
 #include "cli/value.h"
 
+using psl::cli::pack;
+using psl::cli::value;
+
 BOOL CtrlHandler(DWORD fdwCtrlType)
 {
 	switch(fdwCtrlType)
@@ -24,9 +27,7 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 		return (TRUE);
 
 	// CTRL-CLOSE: confirm that the user wants to exit.
-	case CTRL_CLOSE_EVENT:
-		psl::cout << "exiting..." << std::endl;
-		return (TRUE);
+	case CTRL_CLOSE_EVENT: psl::cout << "exiting..." << std::endl; return (TRUE);
 
 	// Pass other signals to the next handler.
 	case CTRL_BREAK_EVENT: return FALSE;
@@ -39,6 +40,23 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 	}
 }
 
+static psl::string_view get_input()
+{
+	static psl::platform_string input(4096, ('\0'));
+	std::memset(input.data(), ('\0'), sizeof(psl::platform_char_t) * input.size());
+	psl::cin.getline(input.data(), input.size() - 1);
+
+#if WIN32
+	static psl::string override;
+	override = psl::from_platform_string(input);
+	return {override.data(), psl::strlen(override.data())};
+#else
+	return {input.data(), psl::strlen(input.data())};
+#endif
+}
+
+void generator(pack& p) {}
+
 int main(int argc, char* argv[])
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -47,7 +65,7 @@ int main(int argc, char* argv[])
 	SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE);
 
 	std::wstring res = L"Стоял";
-	
+
 
 	CONSOLE_FONT_INFOEX cfi;
 	cfi.cbSize		 = sizeof cfi;
@@ -66,24 +84,24 @@ int main(int argc, char* argv[])
 
 
 	// psl::cout << x2 << _T(" ") << x3 << " " << x4 << std::endl;
-	
+
 	{
-		psl::cout << _T("welcome to assembler, use -h or --help to get information on the commands. ") << res << std::endl;
+		psl::cout << _T("welcome to assembler, use -h or --help to get information on the commands. ") << res
+				  << std::endl;
 		psl::string arg;
 	}
 
-	std::shared_ptr<psl::cli::value<int>> int_v { new psl::cli::value<int>("int value", { "i", "integer" }, 5)};
-	auto x = int_v->get_shared();
-	*x = 10;
-	auto y = int_v->get();
+	psl::cli::pack root{
+		value<bool>{"help", {"help"}, false},
+		value<bool>{"exit", {"exit", "quit"}, false},
+		value<pack>{"generator", {"generate", "g"}, pack{generator,
+			value<int>{"integer", {"integer", "i"}, 0}}}};
 
-	auto& v = *int_v;
-	psl::cli::pack p{psl::cli::value<int>{"int value", {"i"}, 7}, *int_v, int_v};
 
-	*x = 2;
-	if(int_v->contains_command("i"))
+	while(!root["exit"]->as<bool>().get())
 	{
-		return 0;
+		psl::array<psl::string_view> commands = utility::string::split(get_input(), ("|"));
+		root.parse(commands);
 	}
 	return 1;
 }

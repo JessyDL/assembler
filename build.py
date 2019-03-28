@@ -1,9 +1,12 @@
 from argparse import ArgumentParser
 import os 
-import sys 
+import sys
 import platform
 import shutil
 import subprocess
+
+import functools
+print = functools.partial(print, flush=True)
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
@@ -26,9 +29,12 @@ parser.add_argument("--vk_version", const="1.1.82.1", default="1.1.82.1", nargs=
                     help="vulkan version to use", dest="vk_version")
 parser.add_argument("--vk_root", const="auto", default="auto", nargs='?',
                     help="root directory for vulkan", dest="vk_root")
+parser.add_argument("--build_config", const="default", default="default", nargs='?',
+                    help="build configuration to use when the build flag is true", dest="build_config")
 parser.add_argument("--vk_static", action='store_true',dest="vk_static", help="when this flag is set, vulkan will statically bind")
-parser.add_argument("-u","--update", action='store_true', dest="cmake_update")
-parser.add_argument("-v","--verbose", action='store_true', dest="verbose")
+parser.add_argument("-u", "--update", action='store_true', dest="cmake_update")
+parser.add_argument("-v", "--verbose", action='store_true', dest="verbose")
+parser.add_argument("-b", "--build", action='store_true', help="build the target as well", dest="build")
 parser.add_argument("--cmake_params", nargs='*',dest="cmake_params")
 args = parser.parse_args()
 
@@ -98,7 +104,11 @@ if args.clean == 'all' or args.clean == 'project':
             elif os.path.isdir(file_path): shutil.rmtree(file_path)
         except Exception as e:
             print(e)
-						
+
+working_dir = os.getcwd()
+os.chdir(project_dir)
+
+retCode = 0
 if not os.path.exists(os.path.join(project_dir, "CMakeFiles")):
     vk_static = "OFF"
     print("generating project files")
@@ -109,6 +119,15 @@ if not os.path.exists(os.path.join(project_dir, "CMakeFiles")):
         cmakeCmd = cmakeCmd + args.cmake_params
     cmakeCmd = cmakeCmd + [ "-H"+ args.root_dir, "-B"+project_dir]
     retCode = subprocess.check_call(cmakeCmd, shell=sys.platform.startswith('win'))
-elif args.cmake_update:
+elif args.cmake_update and args.cmake_params:
+    print("updating project files")
     cmakeCmd = ["cmake.exe", r"."] + args.cmake_params
     retCode = subprocess.check_call(cmakeCmd, shell=sys.platform.startswith('win'))
+	
+
+if args.build and retCode == 0:
+    print("building now...")
+    cmakeCmd = ["cmake.exe", "--build", r".", "--config", args.build_config]
+    retCode = subprocess.check_call(cmakeCmd, shell=sys.platform.startswith('win'))
+	
+os.chdir(working_dir)

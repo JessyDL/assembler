@@ -8,6 +8,16 @@ import subprocess
 import functools
 print = functools.partial(print, flush=True)
 
+class bcolors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    NC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
 parser = ArgumentParser(description='Generate build files for the current project.')
@@ -119,9 +129,11 @@ if not os.path.exists(os.path.join(project_dir, "CMakeFiles")):
         cmakeCmd = cmakeCmd + args.cmake_params
     cmakeCmd = cmakeCmd + [ "-H"+ args.root_dir, "-B"+project_dir]
     retCode = subprocess.check_call(cmakeCmd, shell=sys.platform.startswith('win'))
-elif args.cmake_update and args.cmake_params:
+elif args.cmake_update:
     print("updating project files")
-    cmakeCmd = ["cmake.exe", r"."] + args.cmake_params
+    cmakeCmd = ["cmake.exe", r"."]
+    if args.cmake_params:
+        cmakeCmd = cmakeCmd + args.cmake_params
     retCode = subprocess.check_call(cmakeCmd, shell=sys.platform.startswith('win'))
 	
 
@@ -131,3 +143,6 @@ if args.build and retCode == 0:
     retCode = subprocess.check_call(cmakeCmd, shell=sys.platform.startswith('win'))
 	
 os.chdir(working_dir)
+
+if retCode == 0:
+    print(bcolors.GREEN + "completed building the project" + bcolors.NC)

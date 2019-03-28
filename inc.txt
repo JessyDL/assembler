@@ -1,12 +1,2 @@
 SET(INC 
-inc/bash_terminal.h
-inc/bash_utils.h
-inc/cli_pack.h
-inc/cli_value.h
-inc/glslang_utils.h
-inc/targetver.h
-inc/generators/header_generator.h
-inc/generators/meta.h
-inc/generators/models.h
-inc/generators/shader.h
 )

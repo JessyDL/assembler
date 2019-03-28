@@ -10,6 +10,7 @@ FetchContent_GetProperties(paradigm)
 if(NOT paradigm_POPULATED)
   FetchContent_Populate(paradigm)
   add_subdirectory(${paradigm_SOURCE_DIR} ${paradigm_BINARY_DIR})
+  get_directory_property(PE_DL_LIBS DIRECTORY ${paradigm_SOURCE_DIR} DEFINITION PE_DL_LIBS)
 endif()
 
 set(WSI_LIB ${PARADIGM_WSI_LIB})

@@ -65,8 +65,8 @@ set_property(TARGET ${LOCAL_PROJECT} PROPERTY FOLDER "tools")
 
 
 target_link_libraries(${LOCAL_PROJECT} PUBLIC 
-	${VULKAN_LIB_NAME}  ${PROJECT_PSL} ${PROJECT_FORMAT} 
-	${PROJECT_META} ${ASSIMP_LIB} ${SHLWAPI} )
+	${VULKAN_LIB_NAME}  ${PROJECT_PSL} 
+	${ASSIMP_LIB} ${PE_DL_LIBS} )
 
 
 target_include_directories(${LOCAL_PROJECT}

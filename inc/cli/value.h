@@ -103,8 +103,9 @@ namespace psl::cli
 		class value_base
 		{
 		  public:
-			value_base(psl::string8_t name, const psl::array<psl::string8_t>& commands, bool optional, type_key_t id)
-				: m_Name(name), m_Optional(optional), m_ID(id)
+			value_base(psl::string8_t name, const psl::array<psl::string8_t>& commands, bool optional, type_key_t id,
+					   psl::string_view descr = {})
+				: m_Name(name), m_Optional(optional), m_ID(id), m_Description(descr)
 			{
 				for(const auto& command : commands)
 				{
@@ -160,7 +161,8 @@ namespace psl::cli
 
 			virtual void from_string(psl::string_view t){};
 
-		  protected:
+			psl::string_view description() const noexcept { return m_Description; }
+			void description(psl::string_view descr) { m_Description = descr; };
 			psl::array<psl::string8_t> commands() const noexcept
 			{
 				auto cpy = m_Commands;
@@ -182,6 +184,7 @@ namespace psl::cli
 			}
 
 			psl::string8_t m_Name;
+			psl::string8_t m_Description;
 			psl::array<psl::string8_t> m_Commands;
 			psl::array<psl::string8::char_t> m_ShortCommands;
 			bool m_Optional;
@@ -198,6 +201,15 @@ namespace psl::cli
 			: details::value_base(name, commands, optional, details::key_for<T>()), m_Default(default_value){};
 		value(psl::string8_t name, const psl::array<psl::string8_t>& commands, T default_value, bool optional = true)
 			: details::value_base(name, commands, optional, details::key_for<T>()),
+			  m_Default(std::make_shared<T>(default_value)){};
+
+		value(psl::string8_t name, psl::string_view description, const psl::array<psl::string8_t>& commands,
+			  std::optional<std::shared_ptr<T>> default_value = std::nullopt, bool optional = true)
+			: details::value_base(name, commands, optional, details::key_for<T>(), description),
+			  m_Default(default_value){};
+		value(psl::string8_t name, psl::string_view description, const psl::array<psl::string8_t>& commands,
+			  T default_value, bool optional = true)
+			: details::value_base(name, commands, optional, details::key_for<T>(), description),
 			  m_Default(std::make_shared<T>(default_value)){};
 
 		bool has_value() const noexcept { return m_Value || m_Default; }
@@ -288,6 +300,8 @@ namespace psl::cli
 			}
 			(add(std::forward<Ts>(values)), ...);
 		}
+
+		pack()			  = default;
 		~pack()			  = default;
 		pack(const pack&) = default;
 		pack(pack&&)	  = default;
@@ -399,14 +413,11 @@ namespace psl::cli
 													  is_long_command});
 					}
 				}
+
+				if(!validate(commands, true)) return;
+
 				std::queue<pack*> processed_packs;
-				if(auto end = parse(std::begin(commands), std::end(commands), processed_packs);
-				   end != std::end(commands))
-				{
-					psl::cout << "ERROR: invalid command detected. the command '" << psl::to_platform_string(end->cmd)
-							  << "' was not found.\n";
-					return;
-				}
+				parse(std::begin(commands), std::end(commands), processed_packs);
 
 				while(processed_packs.size() > 0)
 				{
@@ -423,7 +434,123 @@ namespace psl::cli
 			if(m_Callback) std::invoke(m_Callback.value(), *this);
 		}
 
+		void print_help(size_t depth = 0) const noexcept
+		{
+			psl::cout << psl::pstring(80, '-') << "\n";
+			for(const auto& v : m_Values)
+			{
+				psl::cout << psl::pstring(depth, '\t') << psl::to_platform_string(v->name())
+						  << ((v->optional()) ? "* " : " ") << psl::to_platform_string(v->description()) << "\n";
+			}
+			psl::cout << psl::pstring(80, '-') << "\n";
+		}
+
 	  private:
+		bool validate(const psl::array<command>& commands, bool print_reason = false)
+		{
+			bool failed = false;
+			internal_validate(std::begin(commands), std::end(commands), failed, true, print_reason);
+			return !failed;
+		}
+
+		bool internal_validate(const psl::array<psl::array<command>::const_iterator>& values, bool& failed,
+							   bool print_reason = false) const noexcept
+		{
+			for(const auto& v : m_Values)
+			{
+				if(!v->optional() &&
+				   std::none_of(std::begin(values), std::end(values),
+								[v](psl::array<command>::const_iterator it) { return v->contains_command(it->cmd); }))
+				{
+					if(print_reason)
+						psl::cout << "ERROR: missing required command '" << psl::to_platform_string(v->name())
+								  << "'.\n";
+					failed = true;
+					return false;
+				}
+			}
+			return true;
+		}
+
+		psl::array<command>::const_iterator internal_validate(psl::array<command>::const_iterator begin,
+															  psl::array<command>::const_iterator end, bool& failed,
+															  bool root = false, bool print_reason = false) const
+			noexcept
+		{
+			psl::array<psl::array<command>::const_iterator> owned_values{};
+			for(auto command_it = begin; command_it != end; command_it = std::next(command_it))
+			{
+				if(is_help(*command_it)) continue;
+
+				auto value = get_value(*command_it);
+				if(!value)
+				{
+					if(root)
+					{
+						psl::cout << "ERROR: invalid command detected. the command '"
+								  << psl::to_platform_string(command_it->cmd) << "' was not found.\n";
+						failed = true;
+					}
+					return internal_validate(owned_values, failed, print_reason) ? command_it : end;
+				}
+				if(value->is_a<cli::pack>())
+				{
+					pack* new_child = value->as<cli::pack>().get_shared().operator->();
+					if(new_child != this)
+					{
+						command_it = std::prev(
+							new_child->internal_validate(std::next(command_it), end, failed, false, print_reason));
+					}
+				}
+				else
+				{
+					owned_values.emplace_back(command_it);
+				}
+			}
+
+			internal_validate(owned_values, failed, print_reason);
+			return end;
+		}
+
+		psl::string8_t to_string(const psl::array<psl::string8_t>& strs) const noexcept
+		{
+			psl::string8_t res{};
+			for(const auto& str : strs) res.append(str + "; ");
+			return res;
+		}
+
+		void internal_print_help(size_t depth = 0)
+		{
+			size_t col_1 = 32;
+			size_t col_2 = 32;
+			if(depth == 0)
+			{
+				psl::cout << "name" << psl::pstring(col_1 - 4, ' ') << "| commands" << psl::pstring(col_2 - 8, ' ')
+						  << "| description\n";
+				psl::cout << psl::pstring(128, '-') << "\n";
+			}
+			for(const auto& v : m_Values)
+			{
+				auto commands = to_string(v->commands());
+
+				size_t padding_1 = depth * 2 + v->name().size() + (v->optional() ? 1 : 2);
+				padding_1		 = (padding_1 >= col_1) ? 1 : col_1 - padding_1;
+				size_t padding_2 = (commands.size() >= col_2) ? 1 : col_2 - commands.size();
+				psl::cout << psl::pstring(depth * 2, ' ') << psl::to_platform_string(v->name())
+						  << ((v->optional()) ? " " : "* ") << psl::pstring(padding_1, ' ') << "| "
+						  << psl::to_platform_string(commands) << psl::pstring(padding_2, ' ') << "| "
+						  << psl::to_platform_string(v->description()) << "\n";
+				if(v->is_a<cli::pack>())
+				{
+					pack* new_child = v->as<cli::pack>().get_shared().operator->();
+					if(new_child != this)
+					{
+						new_child->internal_print_help(depth + 1);
+					}
+				}
+			}
+		}
+
 		bool has_command(psl::string_view cmd)
 		{
 			return std::any_of(
@@ -439,7 +566,7 @@ namespace psl::cli
 							   });
 		}
 
-		std::shared_ptr<details::value_base> get_value(const command& cmd)
+		std::shared_ptr<details::value_base> get_value(const command& cmd) const noexcept
 		{
 			auto index = std::find_if(
 				std::begin(m_Values), std::end(m_Values),
@@ -447,6 +574,8 @@ namespace psl::cli
 			if(index == std::end(m_Values)) return nullptr;
 			return *index;
 		}
+
+		bool is_help(const command& cmd) const noexcept { return cmd.cmd == "help" || cmd.cmd == "h"; }
 
 		psl::array<command>::const_iterator parse(psl::array<command>::const_iterator begin,
 												  psl::array<command>::const_iterator end,
@@ -456,11 +585,15 @@ namespace psl::cli
 
 			for(auto command_it = begin; command_it != end; command_it = std::next(command_it))
 			{
-				auto value = get_value(*command_it);
-				while(!value)
+				if(is_help(*command_it))
 				{
-					return command_it;
+					internal_print_help();
+					continue;
 				}
+
+				auto value = get_value(*command_it);
+				if(!value) return command_it;
+
 				if(value->is_a<cli::pack>())
 				{
 					pack* new_child = value->as<cli::pack>().get_shared().operator->();

@@ -55,6 +55,7 @@ static psl::string_view get_input()
 #endif
 }
 
+void shader(const pack& p) { psl::cout << "look at that, a shader callback\n"; }
 void generator(pack& p) { psl::cout << "look at that, a callback\n"; }
 
 int main(int argc, char* argv[])
@@ -64,7 +65,7 @@ int main(int argc, char* argv[])
 
 	SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE);
 
-	std::wstring res = L"Стоял";
+	// std::wstring res = L"Стоял";
 
 
 	CONSOLE_FONT_INFOEX cfi;
@@ -85,15 +86,24 @@ int main(int argc, char* argv[])
 
 	// psl::cout << x2 << _T(" ") << x3 << " " << x4 << std::endl;
 
-	{
-		psl::cout << _T("welcome to assembler, use -h or --help to get information on the commands. ") << res
-				  << std::endl;
-		psl::string arg;
-	}
+	psl::cout << _T("welcome to assembler, use -h or --help to get information on the commands.\nyou can also pass ")
+				 _T("the specific command (or its chain) after --help to get more information of that specific ")
+				 _T("command, such as '--help generate shader'.")
+			  << std::endl;
 
-	psl::cli::pack root{
-		value<bool>{"help", {"help"}, false}, value<bool>{"exit", {"exit", "quit"}, false},
-		value<pack>{"generator", {"generate", "g"}, pack{generator, value<int>{"integer", {"integer", "i"}, 0}}}};
+	psl::cli::pack shader_pack{shader, value<psl::string>{"input", "input file", {"input", "i"}, "", false},
+							   value<psl::string>{"output", "output file", {"output", "o"}}};
+
+	psl::cli::pack model_pack{value<psl::string>{"input", "input file", {"input", "i"}, "", false},
+							   value<psl::string>{"output", "output file", {"output", "o"}}};
+	psl::cli::pack generator_pack{generator,
+								  value<pack>{"shader", "glsl to spir-v compiler", {"shader", "s"}, shader_pack},
+								  value<pack>{"model", "model file importer", {"model", "m"}, model_pack}};
+
+	psl::cli::pack root{value<bool>{"exit", "quits the application", {"exit", "quit", "q"}, false},
+						value<pack>{"generator", "generator for various data files", {"generate", "g"}, generator_pack}
+
+	};
 
 
 	while(!root["exit"]->as<bool>().get())

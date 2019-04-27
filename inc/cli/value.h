@@ -5,6 +5,75 @@
 #include "array.h"
 #include "ustring.h"
 #include "string_utils.h"
+#include "memory/region.h"
+#include <queue>
+
+namespace psl
+{
+	psl::string8_t::const_iterator find_substring_index(const psl::string8_t& str, psl::string8::view view)
+	{
+		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+
+		return std::next(std::begin(str), view.data() - str.data());
+	}
+
+	psl::string8_t::iterator find_substring_index(psl::string8_t& str, psl::string8::view view)
+	{
+		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+
+		return std::next(std::begin(str), view.data() - str.data());
+	}
+
+	psl::string16_t::const_iterator find_substring_index(const psl::string16_t& str, psl::string16::view view)
+	{
+		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+
+		return std::next(std::begin(str), view.data() - str.data());
+	}
+
+	psl::string16_t::iterator find_substring_index(psl::string16_t& str, psl::string16::view view)
+	{
+		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+
+		return std::next(std::begin(str), view.data() - str.data());
+	}
+
+	psl::string32_t::const_iterator find_substring_index(const psl::string32_t& str, psl::string32::view view)
+	{
+		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+
+		return std::next(std::begin(str), view.data() - str.data());
+	}
+
+	psl::string32_t::iterator find_substring_index(psl::string32_t& str, psl::string32::view view)
+	{
+		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+
+		return std::next(std::begin(str), view.data() - str.data());
+	}
+
+	psl::string8::view::iterator find_substring_index(psl::string8::view str, psl::string8::view view)
+	{
+		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+
+		return std::next(std::begin(str), view.data() - str.data());
+	}
+
+	psl::string16::view::iterator find_substring_index(psl::string16::view str, psl::string16::view view)
+	{
+		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+
+		return std::next(std::begin(str), view.data() - str.data());
+	}
+
+	psl::string32::view::iterator find_substring_index(psl::string32::view str, psl::string32::view view)
+	{
+		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+
+		return std::next(std::begin(str), view.data() - str.data());
+	}
+} // namespace psl
+
 namespace psl::cli
 {
 	template <typename T>
@@ -71,6 +140,11 @@ namespace psl::cli
 				return *dynamic_cast<value<T>*>(this);
 			}
 
+			template <typename T>
+			bool is_a() const noexcept
+			{
+				return m_ID == key_for<T>();
+			}
 			bool conflicts(const value_base& other) const noexcept
 			{
 				auto cmds		= commands();
@@ -184,6 +258,7 @@ namespace psl::cli
 					if constexpr(std::is_same<bool, T>::value)
 					{
 						set((m_Default) ? !(*m_Default.value()) : true);
+						return;
 					}
 				}
 
@@ -233,41 +308,111 @@ namespace psl::cli
 			throw std::runtime_error("could not find value");
 		}
 
+	  private:
+		size_t next_instance_of(psl::string_view view, psl::char_t delimiter, size_t offset = 0) const noexcept
+		{
+			offset = view.find(delimiter, offset);
+			while(offset != view.npos)
+			{
+				if(offset == 0 || (offset > 0 && view[offset - 1] != '\\')) return offset;
+				offset = view.find(delimiter, offset + 1);
+			}
+			return offset;
+		}
+
+		bool occupied(size_t index, const psl::array<std::pair<size_t, size_t>>& range) const noexcept
+		{
+			return std::any_of(std::begin(range), std::end(range), [index](const std::pair<size_t, size_t> r) {
+				return r.first <= index && index <= r.second;
+			});
+		}
+
+		struct command
+		{
+			psl::string_view cmd;
+			psl::string_view args;
+			bool is_long_command{false};
+		};
+
+	  public:
 		void parse(psl::array<psl::string_view> commands)
 		{
-			for(const auto& command_str_view : commands)
+			for(const auto& view : commands)
 			{
-				psl::string command_str{command_str_view};
+				// todo: support the ' delimiter
+				psl::array<std::pair<size_t, size_t>> occupied_ranges{};
 
-				bool skip_next_token	 = false;
-				psl::char_t opened_scope = '0';
-				size_t last_start		 = command_str.find_first_of("'\"");
-				while(last_start < command_str.size())
+				for(size_t token_offset = next_instance_of(view, '"', 0); token_offset != psl::string_view::npos;
+					token_offset		= next_instance_of(view, '"', token_offset + 1))
 				{
-					if((last_start > 0 && command_str[last_start - 1] != '\\') || last_start == 0)
+					auto begin_token = token_offset + 1;
+					token_offset	 = next_instance_of(view, '"', begin_token);
+					if(token_offset == psl::string_view::npos)
 					{
-						size_t end = command_str.find_first_of(command_str[last_start], last_start + 1);
-						do
-						{
-							if(command_str[end - 1] == '\\')
-							{
-								end = command_str.find_first_of(command_str[last_start], end + 1);
-								continue;
-							}
-							end += 2;
-							command_str.erase(last_start, end - last_start);
-							break;
-						} while(end < command_str.size());
+						// error out
+						psl::cerr << "ERROR: opened a delimiter (\"), but did not close it again.\n";
+						return;
 					}
-					last_start = command_str.find_first_of("'\"", last_start + 1);
+					occupied_ranges.emplace_back(std::pair{begin_token, token_offset});
 				}
 
-				auto tokens{utility::string::split(command_str, " ")};
-				tokens.erase(std::remove_if(std::begin(tokens), std::end(tokens),
-											[](const auto& view) { return view.size() == 0 || view[0] != '-'; }),
-							 std::end(tokens));
+				psl::array<command> commands{};
+				for(size_t token_offset = view.find('-'); token_offset != psl::string_view::npos;
+					token_offset		= view.find('-', token_offset + 1))
+				{
+					if(occupied(token_offset, occupied_ranges)) continue;
+					bool is_long_command = (token_offset != view.size() - 1) && view[token_offset + 1] == '-';
+					token_offset += (is_long_command) ? 2 : 1;
 
-				parse(command_str_view, tokens);
+					size_t cmd_start = token_offset;
+					size_t cmd_end   = view.find(' ', cmd_start);
+					size_t arg_start = view.find_first_not_of(' ', cmd_end);
+					size_t arg_end   = view.find('-', token_offset);
+
+					cmd_end   = (cmd_end == view.npos) ? view.size() : cmd_end;
+					arg_start = (arg_start == view.npos) ? view.size() : arg_start;
+
+					while(arg_end != psl::string_view::npos && occupied(arg_end, occupied_ranges))
+					{
+						arg_end = view.find('-', arg_end + 1);
+					}
+					if(arg_end == psl::string_view::npos) arg_end = view.size();
+
+					if(!is_long_command && cmd_end - cmd_start > 1)
+					{
+						psl::cerr << "ERROR: a short command cannot have multiple characters, please check: -"
+								  << psl::to_platform_string(
+										 psl::string_view(view.data() + cmd_start, cmd_end - cmd_start))
+								  << "\n";
+						return;
+					}
+					if(!is_long_command && cmd_end - cmd_start == 0)
+					{
+						psl::cerr << "ERROR: a short command supplied, but no character behind it, please check the "
+									 "free floating '-' \n";
+						return;
+					}
+					if(cmd_end != cmd_start)
+					{
+						commands.emplace_back(command{psl::string_view(view.data() + cmd_start, cmd_end - cmd_start),
+													  psl::string_view(view.data() + arg_start, arg_end - arg_start),
+													  is_long_command});
+					}
+				}
+				std::queue<pack*> processed_packs;
+				if(auto end = parse(std::begin(commands), std::end(commands), processed_packs);
+				   end != std::end(commands))
+				{
+					psl::cout << "ERROR: invalid command detected. the command '" << psl::to_platform_string(end->cmd)
+							  << "' was not found.\n";
+					return;
+				}
+
+				while(processed_packs.size() > 0)
+				{
+					processed_packs.front()->operator()();
+					processed_packs.pop();
+				}
 			}
 		}
 
@@ -279,10 +424,62 @@ namespace psl::cli
 		}
 
 	  private:
-		void parse(psl::string_view command, const psl::array<psl::string_view>& tokens)
+		bool has_command(psl::string_view cmd)
 		{
-			for(const auto& token : tokens) psl::cout << '\t' << psl::to_platform_string(token) << "\n";
+			return std::any_of(
+				std::begin(m_Values), std::end(m_Values),
+				[&cmd](const std::shared_ptr<details::value_base>& v) { return v->contains_command(cmd); });
 		}
+
+		bool is_pack(psl::string_view cmd)
+		{
+			return std::any_of(std::begin(m_Values), std::end(m_Values),
+							   [&cmd](const std::shared_ptr<details::value_base>& v) {
+								   return v->contains_command(cmd) && v->is_a<cli::pack>();
+							   });
+		}
+
+		std::shared_ptr<details::value_base> get_value(const command& cmd)
+		{
+			auto index = std::find_if(
+				std::begin(m_Values), std::end(m_Values),
+				[&cmd](const std::shared_ptr<details::value_base>& v) { return v->contains_command(cmd.cmd); });
+			if(index == std::end(m_Values)) return nullptr;
+			return *index;
+		}
+
+		psl::array<command>::const_iterator parse(psl::array<command>::const_iterator begin,
+												  psl::array<command>::const_iterator end,
+												  std::queue<pack*>& processed_packs)
+		{
+			processed_packs.push(this);
+
+			for(auto command_it = begin; command_it != end; command_it = std::next(command_it))
+			{
+				auto value = get_value(*command_it);
+				while(!value)
+				{
+					return command_it;
+				}
+				if(value->is_a<cli::pack>())
+				{
+					pack* new_child = value->as<cli::pack>().get_shared().operator->();
+					if(new_child != this)
+					{
+						command_it = std::prev(new_child->parse(std::next(command_it), end, processed_packs));
+					}
+				}
+				else
+				{
+					value->from_string(command_it->args);
+				}
+				// psl::cout << '\t' << "command: " << psl::to_platform_string(command_it->cmd)
+				//		  << " depth: " << psl::to_platform_string(std::to_string(stack.size() - 1))
+				//		  << "\n\t\t argument: " << psl::to_platform_string(command_it->args) << "\n";
+			}
+			return end;
+		}
+
 		void validate(const details::value_base& new_value) const
 		{
 			if(std::any_of(std::begin(m_Values), std::end(m_Values),

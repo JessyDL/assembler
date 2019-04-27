@@ -55,7 +55,7 @@ static psl::string_view get_input()
 #endif
 }
 
-void generator(pack& p) {}
+void generator(pack& p) { psl::cout << "look at that, a callback\n"; }
 
 int main(int argc, char* argv[])
 {
@@ -92,10 +92,8 @@ int main(int argc, char* argv[])
 	}
 
 	psl::cli::pack root{
-		value<bool>{"help", {"help"}, false},
-		value<bool>{"exit", {"exit", "quit"}, false},
-		value<pack>{"generator", {"generate", "g"}, pack{generator,
-			value<int>{"integer", {"integer", "i"}, 0}}}};
+		value<bool>{"help", {"help"}, false}, value<bool>{"exit", {"exit", "quit"}, false},
+		value<pack>{"generator", {"generate", "g"}, pack{generator, value<int>{"integer", {"integer", "i"}, 0}}}};
 
 
 	while(!root["exit"]->as<bool>().get())
@@ -103,5 +101,5 @@ int main(int argc, char* argv[])
 		psl::array<psl::string_view> commands = utility::string::split(get_input(), ("|"));
 		root.parse(commands);
 	}
-	return 1;
+	return 0;
 }

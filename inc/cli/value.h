@@ -8,71 +8,71 @@
 #include "memory/region.h"
 #include <queue>
 
-namespace psl
-{
-	psl::string8_t::const_iterator find_substring_index(const psl::string8_t& str, psl::string8::view view)
-	{
-		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
-
-		return std::next(std::begin(str), view.data() - str.data());
-	}
-
-	psl::string8_t::iterator find_substring_index(psl::string8_t& str, psl::string8::view view)
-	{
-		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
-
-		return std::next(std::begin(str), view.data() - str.data());
-	}
-
-	psl::string16_t::const_iterator find_substring_index(const psl::string16_t& str, psl::string16::view view)
-	{
-		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
-
-		return std::next(std::begin(str), view.data() - str.data());
-	}
-
-	psl::string16_t::iterator find_substring_index(psl::string16_t& str, psl::string16::view view)
-	{
-		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
-
-		return std::next(std::begin(str), view.data() - str.data());
-	}
-
-	psl::string32_t::const_iterator find_substring_index(const psl::string32_t& str, psl::string32::view view)
-	{
-		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
-
-		return std::next(std::begin(str), view.data() - str.data());
-	}
-
-	psl::string32_t::iterator find_substring_index(psl::string32_t& str, psl::string32::view view)
-	{
-		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
-
-		return std::next(std::begin(str), view.data() - str.data());
-	}
-
-	psl::string8::view::iterator find_substring_index(psl::string8::view str, psl::string8::view view)
-	{
-		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
-
-		return std::next(std::begin(str), view.data() - str.data());
-	}
-
-	psl::string16::view::iterator find_substring_index(psl::string16::view str, psl::string16::view view)
-	{
-		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
-
-		return std::next(std::begin(str), view.data() - str.data());
-	}
-
-	psl::string32::view::iterator find_substring_index(psl::string32::view str, psl::string32::view view)
-	{
-		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
-
-		return std::next(std::begin(str), view.data() - str.data());
-	}
-} // namespace psl
+////namespace psl
+////{
+////	psl::string8_t::const_iterator find_substring_index(const psl::string8_t& str, psl::string8::view view)
+////	{
+////		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+////
+////		return std::next(std::begin(str), view.data() - str.data());
+////	}
+////
+////	psl::string8_t::iterator find_substring_index(psl::string8_t& str, psl::string8::view view)
+////	{
+////		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+////
+////		return std::next(std::begin(str), view.data() - str.data());
+////	}
+////
+////	psl::string16_t::const_iterator find_substring_index(const psl::string16_t& str, psl::string16::view view)
+////	{
+////		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+////
+////		return std::next(std::begin(str), view.data() - str.data());
+////	}
+////
+////	psl::string16_t::iterator find_substring_index(psl::string16_t& str, psl::string16::view view)
+////	{
+////		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+////
+////		return std::next(std::begin(str), view.data() - str.data());
+////	}
+////
+////	psl::string32_t::const_iterator find_substring_index(const psl::string32_t& str, psl::string32::view view)
+////	{
+////		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+////
+////		return std::next(std::begin(str), view.data() - str.data());
+////	}
+////
+////	psl::string32_t::iterator find_substring_index(psl::string32_t& str, psl::string32::view view)
+////	{
+////		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+////
+////		return std::next(std::begin(str), view.data() - str.data());
+////	}
+////
+////	psl::string8::view::iterator find_substring_index(psl::string8::view str, psl::string8::view view)
+////	{
+////		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+////
+////		return std::next(std::begin(str), view.data() - str.data());
+////	}
+////
+////	psl::string16::view::iterator find_substring_index(psl::string16::view str, psl::string16::view view)
+////	{
+////		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+////
+////		return std::next(std::begin(str), view.data() - str.data());
+////	}
+////
+////	psl::string32::view::iterator find_substring_index(psl::string32::view str, psl::string32::view view)
+////	{
+////		if(view.data() < str.data() || view.data() >= str.data() + str.size()) return std::end(str);
+////
+////		return std::next(std::begin(str), view.data() - str.data());
+////	}
+////} // namespace psl
 
 namespace psl::cli
 {
@@ -290,9 +290,9 @@ namespace psl::cli
 				  typename = std::enable_if_t<!(std::is_same<pack, std::decay_t<Fn>>::value && sizeof...(Ts) == 0)>>
 		pack(Fn&& fn, Ts&&... values)
 		{
-			if constexpr(std::is_invocable<Fn, pack&>::value)
+			if constexpr(std::is_invocable<Fn, pack&>::value || std::is_bind_expression<Fn>::value)
 			{
-				m_Callback = fn;
+				m_Callback = std::function<void(psl::cli::pack&)>(fn);
 			}
 			else
 			{
@@ -301,6 +301,13 @@ namespace psl::cli
 			(add(std::forward<Ts>(values)), ...);
 		}
 
+		
+		template <typename... Ts>
+		pack(std::function<void(psl::cli::pack&)>&& fn, Ts&&... values)
+		{
+			m_Callback = fn;
+			(add(std::forward<Ts>(values)), ...);
+		}
 		pack()			  = default;
 		~pack()			  = default;
 		pack(const pack&) = default;
@@ -380,7 +387,7 @@ namespace psl::cli
 
 					size_t cmd_start = token_offset;
 					size_t cmd_end   = view.find(' ', cmd_start);
-					size_t arg_start = view.find_first_not_of(' ', cmd_end);
+					size_t arg_start = view.find_first_not_of(" \"", cmd_end);
 					size_t arg_end   = view.find('-', token_offset);
 
 					cmd_end   = (cmd_end == view.npos) ? view.size() : cmd_end;
@@ -391,6 +398,9 @@ namespace psl::cli
 						arg_end = view.find('-', arg_end + 1);
 					}
 					if(arg_end == psl::string_view::npos) arg_end = view.size();
+
+					if(auto temp_end = utility::string::rfind_first_not_of(view, " \"", arg_end); temp_end >= arg_start)
+						arg_end = temp_end;
 
 					if(!is_long_command && cmd_end - cmd_start > 1)
 					{
@@ -431,7 +441,10 @@ namespace psl::cli
 
 		void operator()()
 		{
-			if(m_Callback) std::invoke(m_Callback.value(), *this);
+			if(m_Callback)
+			{
+				std::invoke(m_Callback.value(), *this);
+			}
 		}
 
 		void print_help(size_t depth = 0) const noexcept

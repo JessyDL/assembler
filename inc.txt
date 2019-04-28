@@ -1,3 +1,5 @@
 SET(INC 
 inc/cli/value.h
+inc/generators/shader.h
+inc/glslang_utils.h
 )

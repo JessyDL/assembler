@@ -59,9 +59,9 @@ if args.generator == 'auto':
 cmake_generator = "ninja"
 if args.generator == "msvc":
     if args.architecture == 'x64':
-        cmake_generator = "Visual Studio 15 2017 Win64"
+        cmake_generator = "Visual Studio 16 2019"
     elif args.architecture == 'arm':
-        cmake_generator = "Visual Studio 15 2017 ARM"
+        cmake_generator = "Visual Studio 16 2019"
 elif args.generator == 'make':
     cmake_generator = "Unix Makefiles"
 		

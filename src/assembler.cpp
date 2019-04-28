@@ -12,6 +12,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include "cli/value.h"
+#include "generators/shader.h"
 
 using psl::cli::pack;
 using psl::cli::value;
@@ -55,8 +56,11 @@ static psl::string_view get_input()
 #endif
 }
 
-void shader(const pack& p) { psl::cout << "look at that, a shader callback\n"; }
-void generator(pack& p) { psl::cout << "look at that, a callback\n"; }
+void shader(pack& p) { psl::cout << "look at that, a shader callback\n"; }
+void generator(pack& p) 
+{ 
+	psl::cout << "look at that, a callback\n"; 
+}
 
 int main(int argc, char* argv[])
 {
@@ -91,13 +95,11 @@ int main(int argc, char* argv[])
 				 _T("command, such as '--help generate shader'.")
 			  << std::endl;
 
-	psl::cli::pack shader_pack{shader, value<psl::string>{"input", "input file", {"input", "i"}, "", false},
-							   value<psl::string>{"output", "output file", {"output", "o"}}};
+	assembler::generators::shader shader_gen{};
 
 	psl::cli::pack model_pack{value<psl::string>{"input", "input file", {"input", "i"}, "", false},
 							   value<psl::string>{"output", "output file", {"output", "o"}}};
-	psl::cli::pack generator_pack{generator,
-								  value<pack>{"shader", "glsl to spir-v compiler", {"shader", "s"}, shader_pack},
+	psl::cli::pack generator_pack{generator, value<pack>{"shader", "glsl to spir-v compiler", {"shader", "s"}, std::move(shader_gen.pack())},
 								  value<pack>{"model", "model file importer", {"model", "m"}, model_pack}};
 
 	psl::cli::pack root{value<bool>{"exit", "quits the application", {"exit", "quit", "q"}, false},

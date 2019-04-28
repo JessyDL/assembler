@@ -1,11 +1,14 @@
 ﻿#include "stdafx.h"
 #include "generators/shader.h"
-
+#include <filesystem>
+#include "platform_utils.h"
+#include "glslang_utils.h"
 
 // todo we should figure out the bindings dynamically instead of having them written into the files, and then potentially safeguard the user
 // from accidentally merging shaders together that do not work together
 
 using namespace assembler::generators;
+using namespace psl;
 
 using MShader = core::meta::shader;
 using MSVertex = MShader::vertex;
@@ -38,6 +41,7 @@ bool shader::all_scopes(file_data& data)
 		{
 			return write_error(data, scope_start, ("could not find the end of the scope's name"));
 		}
+		scope_name_n2 -= 1;
 		if(source[scope_name_n2] == (')'))
 		{
 			// we've entered a function scope, let's exit asap
@@ -76,7 +80,7 @@ bool shader::all_scopes(file_data& data)
 		{
 			return write_error(data, scope_name_n1, ("could not figure out the type of the scope '") + name +("'"));
 		}
-		scope_type_n2 += 1;
+
 		auto scope_type_n1 = utility::string::rfind_first_of(source, (" \t\n\r"), scope_type_n2);
 		if(scope_type_n1 == psl::string_view::npos)
 		{
@@ -170,12 +174,11 @@ bool shader::all_scopes(file_data& data)
 					return write_error(data, sub_scope_start, ("could not figure out the name of the sub-element in the scope '") + local_scope.unique_name + ("'"));
 				}
 
-				if(sub[local_name_n2] == (')'))
+				if(sub[local_name_n2 - 1] == (')'))
 				{
 					local_name_n2 = sub.rfind(('('), local_name_n2);
 					local_name_n2 = utility::string::rfind_first_not_of(sub, (" \n\r\t"), local_name_n2);
 				}
-				local_name_n2 += 1;
 
 				auto local_name_n1 = utility::string::rfind_first_of(sub, (" \n\r\t"), local_name_n2);
 				if(local_name_n1 == psl::string_view::npos)
@@ -191,7 +194,7 @@ bool shader::all_scopes(file_data& data)
 				{
 					return write_error(data, local_name_n1, ("could not figure out the type of the sub-element '") + local_name + ("' in the scope '") + local_scope.unique_name + ("'"));
 				}
-				local_type_n2 += 1;
+
 				auto local_type_n1 = utility::string::rfind_first_of(sub, (" \t\n\r"), local_type_n2);
 				if(local_type_n1 == psl::string_view::npos)
 				{
@@ -500,7 +503,7 @@ bool shader::all_scopes(file_data& data)
 	return true;
 }
 
-bool shader::parse_includes(tools::bash_terminal& bt, file_data& data)
+bool shader::parse_includes(file_data& data)
 {
 	auto inc_n = data.content.find(("#include"));
 	while(inc_n != psl::string_view::npos)
@@ -547,8 +550,8 @@ bool shader::parse_includes(tools::bash_terminal& bt, file_data& data)
 			include = include.substr(3);
 		}
 		include_path = include_path + ('/') + include;
-		include_path = utility::platform::file::to_unix(include_path);
-		if(!utility::bash::file::exists(bt, include_path))
+		include_path = utility::platform::file::to_platform(include_path);
+		if(!std::filesystem::exists(include_path))
 		{
 			psl::string_view current_view{data.content.data(), endline_n};
 			auto line_number = utility::string::count(current_view, ("\n"));
@@ -560,7 +563,7 @@ bool shader::parse_includes(tools::bash_terminal& bt, file_data& data)
 			return false;
 		}
 
-		if(!cache_file(bt, include_path))
+		if(!cache_file(include_path))
 			return false;
 
 		data.includes.emplace_back(std::make_pair(include_path, inc_n));
@@ -616,17 +619,17 @@ bool shader::parse_using(file_data& data)
 
 	return false;
 }
-bool shader::parse(tools::bash_terminal& bt, file_data& data)
+bool shader::parse(file_data& data)
 {
-	if(parse_includes(bt, data) && parse_using(data) && all_scopes(data))
+	if(parse_includes(data) && parse_using(data) && all_scopes(data))
 		return true;
 
 	return false;
 }
-bool shader::cache_file(tools::bash_terminal& bt, const psl::string& file)
+bool shader::cache_file(const psl::string& file)
 {
 	auto it = m_Cache.find(file);
-	if(it != m_Cache.end() && utility::bash::file::last_modification(bt, file) == it->second.last_modified)
+	if(it != m_Cache.end() && std::filesystem::last_write_time(file).time_since_epoch().count() == it->second.last_modified)
 	{
 		if(m_Verbose)
 		{
@@ -635,7 +638,7 @@ bool shader::cache_file(tools::bash_terminal& bt, const psl::string& file)
 		}
 		for(const auto& include : it->second.includes)
 		{
-			cache_file(bt, include.first);
+			cache_file(include.first);
 		}
 		return true;
 	}
@@ -661,10 +664,10 @@ bool shader::cache_file(tools::bash_terminal& bt, const psl::string& file)
 				psl::cout << psl::to_platform_string(file +" is being loaded into the cache\n");
 			file_data fdata;
 			fdata.content = std::move(res.value());
-			fdata.last_modified = utility::bash::file::last_modification(bt, file).value_or(0u);
+			fdata.last_modified = std::filesystem::last_write_time(file).time_since_epoch().count();
 			fdata.filename = file;
 			auto& data = m_Cache[file] = fdata;
-			parse(bt, data);
+			parse(data);
 		}
 	}
 	return true;
@@ -878,17 +881,20 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 
 	return true;
 }
-void shader::on_generate(cli::parameter_pack& pack)
+void shader::on_generate(psl::cli::pack& pack)
 {
 	// -g -s -i "C:\Projects\data_old\Shaders\Surface\default.vert" -o "C:\Projects\data_old\Shaders\test_output\default.spv" -O -v
 	// -g -s -i "C:\Projects\data_old\Shaders\Surface\default.vert" -o "C:\Projects\data_old\Shaders\test_output\default-glsl.vert" --glsl -v
-	tools::bash_terminal bt;
-	psl::string ifile = pack.get_as_a<psl::string>(("input"))->get();
-	psl::string ofile = pack.get_as_a<psl::string>(("output"))->get();
-	bool overwrite = pack.get_as_a<bool>(("overwrite"))->get();
-	bool compiled_glsl = pack.get_as_a<bool>(("compiled_glsl"))->get();
-	bool optimize = pack.get_as_a<bool>(("optimize"))->get();
-	m_Verbose = pack.get_as_a<bool>(("verbose"))->get();
+
+	psl::string ifile = pack["input"]->as<psl::string>().get();
+	psl::string ofile = pack["output"]->as<psl::string>().get();
+	bool overwrite = pack["overwrite"]->as<bool>().get();
+	bool compiled_glsl = pack["compiled glsl"]->as<bool>().get();
+	bool optimize = pack["optimize"]->as<bool>().get();
+	m_Verbose = pack["verbose"]->as<bool>().get();
+
+	ifile = utility::platform::file::to_platform(ifile);
+	ofile = utility::platform::file::to_platform(ofile);
 
 	UID meta_UID = UID::generate();
 	if(utility::platform::file::exists(ofile + "." + ::meta::META_EXTENSION))
@@ -902,10 +908,8 @@ void shader::on_generate(cli::parameter_pack& pack)
 
 	psl::timer timer;
 
-	ifile = utility::platform::file::to_unix(ifile);
-	ofile = utility::platform::file::to_unix(ofile);
 
-	if(!overwrite && utility::bash::file::exists(bt, ofile))
+	if(!overwrite && std::filesystem::exists(ofile))
 	{
 		utility::terminal::set_color(utility::terminal::color::YELLOW);
 		psl::cerr << psl::to_platform_string("WARNING: the output file '"+ ofile +"' already exists, and 'overwrite' has been set to false.");
@@ -915,7 +919,7 @@ void shader::on_generate(cli::parameter_pack& pack)
 
 	try
 	{
-		if(!cache_file(bt, ifile))
+		if(!cache_file(ifile))
 		{
 			psl::cerr << ("something went wrong when loading the file in the cache, please consult the output to see why");
 			goto end;
@@ -946,7 +950,7 @@ void shader::on_generate(cli::parameter_pack& pack)
 
 		if(compiled_glsl)
 		{
-			utility::bash::file::write(bt, ofile, shader.content);
+			utility::platform::file::write(ofile, shader.content);
 			psl::cout << psl::to_platform_string("outputted the generated glsl file at "+ ofile +"\n");
 			goto end;
 		}
@@ -1153,10 +1157,9 @@ void shader::on_generate(cli::parameter_pack& pack)
 		serialization::serializer s;
 		format::container container;
 		s.serialize<serialization::encode_to_format>(&shaderMeta, container);
-		utility::bash::file::write(bt, ofile + (".meta"), psl::from_string8_t(container.to_string()));
+		utility::platform::file::write(ofile + (".meta"), psl::from_string8_t(container.to_string()));
 	}
 
 end:
-	if(m_Verbose)
-		psl::cout << ("generating took ") << timer.elapsed() << ("ns") << std::endl;
+	if(m_Verbose) psl::cout << ("generating took ") << timer.elapsed().count() << ("ns") << std::endl;
 }

@@ -1,10 +1,11 @@
 ﻿#pragma once
-#include "cli_pack.h"
-#include "bash_terminal.h"
-#include "bash_utils.h"
+//#include "cli_pack.h"
+//#include "bash_terminal.h"
+//#include "bash_utils.h"
+#include "string_utils.h"
+#include "cli/value.h"
 #include "terminal_utils.h"
-#include "glslang_utils.h"
-#include "../../meta/inc/meta.h"
+#include "../../psl/inc/meta.h"
 #include "meta/shader.h"
 #include <set>
 #include "timer.h"
@@ -13,7 +14,19 @@ namespace assembler::generators
 {
 	class shader
 	{
-		enum class block_type { unknown_t = 0, struct_t, attribute_t, descriptor_t, inlined_t, interface_t };
+		enum class block_type
+		{
+			unknown_t = 0,
+			struct_t,
+			attribute_t,
+			descriptor_t,
+			inlined_t,
+			interface_t
+		};
+
+		template <typename T>
+		using cli_value = psl::cli::value<T>;
+
 
 		struct vertex_attribute
 		{
@@ -49,7 +62,8 @@ namespace assembler::generators
 			std::optional<psl::string> parent{std::nullopt};
 			std::vector<parsed_element> elements;
 		};
-	public:
+
+	  public:
 		struct file_data
 		{
 			uint64_t last_modified;
@@ -57,7 +71,7 @@ namespace assembler::generators
 			psl::string filename;
 			std::vector<std::pair<psl::string, size_t>> includes;
 			std::vector<parsed_scope> scopes;
-			tools::glslang::type type;
+			uint8_t type;
 
 			psl::string using_in_type;
 			psl::string using_in_name;
@@ -66,7 +80,8 @@ namespace assembler::generators
 			psl::string using_descr_type;
 			psl::string using_descr_name;
 		};
-	private:
+
+	  private:
 		struct result_shader
 		{
 			psl::string content;
@@ -76,105 +91,38 @@ namespace assembler::generators
 			parsed_scope descriptor;
 		};
 
-		std::unordered_map<psl::string, size_t> m_KnownTypes
-		{
-			{("bool"), 1},
-			{("int"), 4},
-			{("uint"), 4},
-			{("float"), 4},
-			{("double"), 8},
-			{("sampler"), 0},
-			{("sampler2D"), 0},
-			{("sampler3D"), 0},
-			{("samplerCube"), 0}
-		};
+		std::unordered_map<psl::string, size_t> m_KnownTypes{
+			{("bool"), 1},	{("int"), 4},		  {("uint"), 4},	  {("float"), 4},	  {("double"), 8},
+			{("sampler"), 0}, {("sampler2D"), 0}, {("sampler3D"), 0}, {("samplerCube"), 0}};
 
-		std::unordered_map<psl::string, size_t> m_TypeToFormat
-		{
-			{("vec4"), 109},
-		{("mat4"), 109},
-		{("vec3"), 106},
-		{("mat3"), 106},
-		{("vec2"), 103},
-		{("mat2"), 103}
-		};
+		std::unordered_map<psl::string, size_t> m_TypeToFormat{{("vec4"), 109}, {("mat4"), 109}, {("vec3"), 106},
+															   {("mat3"), 106}, {("vec2"), 103}, {("mat2"), 103}};
 
-		std::unordered_map<psl::string, size_t> m_DescriptorType
-		{
-			{("ubo"), 6},
-			{("ssbo"), 7},
-			{("combined_sampler"), 1}
-		};
-	public:
+		std::unordered_map<psl::string, size_t> m_DescriptorType{
+			{("ubo"), 6}, {("ssbo"), 7}, {("combined_sampler"), 1}};
+
+	  public:
 		shader()
 		{
-			m_Pack << std::move(cli::value<psl::string>{}
-			.name(("input"))
-				.command(("input"))
-				.short_command(('i'))
-				.hint(("location of the input file"))
-				.required(true))
-				<< std::move(cli::value<psl::string>{}
-			.name(("output"))
-				.command(("output"))
-				.short_command(('o'))
-				.hint(("location where to place the file"))
-				.required(true))
-				<< std::move(cli::value<bool>{}
-			.name(("overwrite"))
-				.command(("overwrite"))
-				.short_command(('f'))
-				.hint(("should the output file be overwritten when it already exists?"))
-				.default_value(true))
-				<< std::move(cli::value<bool>{}
-			.name(("optimize"))
-				.command(("optimize"))
-				.short_command(('O'))
-				.hint(("should we optimize the output?"))
-				.default_value(false))
-				<< std::move(cli::value<bool>{}
-			.name(("compiled_glsl"))
-				.command(("glsl"))
-				.hint(("should we instead print the complete constructed GLSL (with includes etc..)?"))
-				.default_value(false))
-				<< std::move(cli::value<bool>{}
-			.name(("verbose"))
-				.command(("verbose"))
-				.short_command(('v'))
-				.hint(("should verbose information be printed about the internal process?"))
-				.default_value(false));
-
-			m_Pack.callback(std::bind(&assembler::generators::shader::on_generate, this, m_Pack));
-
-			std::unordered_map<psl::string, size_t> vectoral_types
-			{
-				{("b"), 1},
-				{("i"), 4},
-				{("u"), 4},
-				{(""), 4},
-				{("d"), 8}
-			};
+			std::unordered_map<psl::string, size_t> vectoral_types{
+				{("b"), 1}, {("i"), 4}, {("u"), 4}, {(""), 4}, {("d"), 8}};
 			for(size_t i = 2; i <= 4; ++i)
 			{
 				for(const auto& vType : vectoral_types)
 				{
-					psl::string fulltype = vType.first + ("vec") + psl::from_string8_t(utility::to_string(i));
-					size_t size = vType.second * i;
+					psl::string fulltype   = vType.first + ("vec") + psl::from_string8_t(utility::to_string(i));
+					size_t size			   = vType.second * i;
 					m_KnownTypes[fulltype] = size;
 				}
 			}
 
-			vectoral_types = 
-				std::unordered_map<psl::string, size_t>{
-				{(""), 4},
-				{("d"), 8}
-			};
+			vectoral_types = std::unordered_map<psl::string, size_t>{{(""), 4}, {("d"), 8}};
 			for(size_t i = 2; i <= 4; ++i)
 			{
 				for(const auto& vType : vectoral_types)
 				{
-					psl::string fulltype = vType.first + ("mat") + psl::from_string8_t(utility::to_string(i));
-					size_t size = vType.second * i * i;
+					psl::string fulltype   = vType.first + ("mat") + psl::from_string8_t(utility::to_string(i));
+					size_t size			   = vType.second * i * i;
 					m_KnownTypes[fulltype] = size;
 				}
 			}
@@ -185,40 +133,60 @@ namespace assembler::generators
 				{
 					for(const auto& vType : vectoral_types)
 					{
-						psl::string fulltype = vType.first + ("mat") + psl::from_string8_t(utility::to_string(n)) + ("x") + psl::from_string8_t(utility::to_string(m));
-						size_t size = vType.second * n * m;
+						psl::string fulltype = vType.first + ("mat") + psl::from_string8_t(utility::to_string(n)) +
+											   ("x") + psl::from_string8_t(utility::to_string(m));
+						size_t size			   = vType.second * n * m;
 						m_KnownTypes[fulltype] = size;
 					}
 				}
 			}
 		}
 
-		cli::parameter_pack& pack()
+		psl::cli::pack pack()
 		{
-			return m_Pack;
+			return psl::cli::pack{
+				std::bind(&assembler::generators::shader::on_generate, this, std::placeholders::_1),
+				cli_value<psl::string>{"input", "location of the input file", {"input", "i"}, "", false},
+				cli_value<psl::string>{"output", "location where to place the file", {"output", "o"}, "", true},
+				cli_value<bool>{"overwrite",
+								"should the output file be overwritten if it already exists?",
+								{"overwrite", "f", "force"},
+								true,
+								true},
+				cli_value<bool>{"optimize", "should we optimize the output", {"optimize", "O"}, false, true},
+				cli_value<bool>{"compiled glsl",
+								"should we instead print the complete constructed GLSL (with includes etc..)?",
+								{"glsl"},
+								false,
+								true},
+				cli_value<bool>{"verbose",
+								"should verbose information be printed about the internal process?",
+								{"verbose", "v"},
+								false,
+								true}};
 		}
-	private:
+
+	  private:
 		bool all_scopes(file_data& data);
-		bool parse_includes(tools::bash_terminal& bt, file_data& data);
+		bool parse_includes(file_data& data);
 
 
 		bool parse_using(file_data& data, psl::string name, psl::string* type_out, psl::string* name_out);
 
 		bool parse_using(file_data& data);
 
-		bool parse(tools::bash_terminal& bt, file_data& data);
-		bool cache_file(tools::bash_terminal& bt, const psl::string& file);
+		bool parse(file_data& data);
+		bool cache_file(const psl::string& file);
 
 		psl::string construct(const file_data& fdata, std::set<psl::string_view>& includes) const;
 
 		bool find(const file_data& fdata, const psl::string& name, block_type type, parsed_scope* out) const;
 
 		bool construct(const file_data& fdata, result_shader& out, psl::string_view entry = ("main")) const;
-		void on_generate(cli::parameter_pack& pack);
+		void on_generate(psl::cli::pack& pack);
 
-		cli::parameter_pack m_Pack;
-		std::unordered_map<psl::string, file_data> m_Cache; // Caches the files read. Note that the filepath 
+		std::unordered_map<psl::string, file_data> m_Cache; // Caches the files read. Note that the filepath
 															// will always be Unix style regardless of input
-		bool m_Verbose;
+		bool m_Verbose{false};
 	};
-}
+} // namespace assembler::generators

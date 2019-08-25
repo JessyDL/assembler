@@ -21,6 +21,7 @@ get_directory_property(PE_DEFINES DIRECTORY paradigm DEFINITION PE_DEFINES)
 
 set_property(TARGET ${PROJECT_PSL} PROPERTY FOLDER "paradigm")
 set_property(TARGET ${PROJECT_CORE} PROPERTY FOLDER "paradigm")
+
 # -------------------------------------------------------------------------------------------------
 # Assimp setup
 # -------------------------------------------------------------------------------------------------
@@ -32,13 +33,8 @@ if(NOT assimp_POPULATED)
 	FetchContent_Populate(assimp)
 	add_subdirectory(${assimp_SOURCE_DIR} ${assimp_BINARY_DIR})
 	message(STATUS "assimp/assimp fetched")
-endif()	
-set(ASSIMP_INC_PATH "${assimp_SOURCE_DIR}/include")
-set(ASSIMP_BIN_PATH "${assimp_SOURCE_DIR}/bin/x64")
-set(ASSIMP_LIB "${assimp_SOURCE_DIR}/lib/x64/assimp-vc140-mt.lib")
-message("assimp directory set at: ${assimp_SOURCE_DIR}")
+endif()
 
-set_property(TARGET assimp PROPERTY FOLDER "assimp")
 # -------------------------------------------------------------------------------------------------
 # glslang setup
 # -------------------------------------------------------------------------------------------------
@@ -48,12 +44,27 @@ FetchContent_GetProperties(glslang)
 if(NOT glslang_POPULATED)
 	message(STATUS "fetching KhronosGroup/glslang...")
 	FetchContent_Populate(glslang)
-	EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} update_glslang_sources.py WORKING_DIRECTORY ${glslang_SOURCE_DIR})
+	#EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} update_glslang_sources.py WORKING_DIRECTORY ${glslang_SOURCE_DIR})
 	set(BUILD_SHARED_LIBS OFF)
+	set(ENABLE_GLSLANG_BINARIES ON)
+	set(ENABLE_HLSL OFF)
 	add_subdirectory(${glslang_SOURCE_DIR} ${glslang_BINARY_DIR})
 	message(STATUS "KhronosGroup/glslang fetched")
-endif()	
-set_property(TARGET glslang PROPERTY FOLDER "glslang")
+endif()
+
+# -------------------------------------------------------------------------------------------------
+# SPIRV-Cross setup
+# -------------------------------------------------------------------------------------------------
+
+FetchContent_Declare(spirvcross GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Cross GIT_SHALLOW TRUE GIT_PROGRESS TRUE)
+FetchContent_GetProperties(spirvcross)
+if(NOT spirvcross_POPULATED)
+	message(STATUS "fetching KhronosGroup/SPIRV-Cross ...")
+	FetchContent_Populate(spirvcross)
+	add_subdirectory(${spirvcross_SOURCE_DIR} ${spirvcross_BINARY_DIR})
+	message(STATUS "KhronosGroup/SPIRV-Cross  fetched")
+endif()
+
 # -------------------------------------------------------------------------------------------------
 # Build binary
 # -------------------------------------------------------------------------------------------------
@@ -65,10 +76,6 @@ include(generators.txt)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/inc" PREFIX "inc" FILES ${INC}) 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${SRC}) 
 source_group(TREE "${paradigm_SOURCE_DIR}/${PARADIGM_ROOT}/core/src" PREFIX "src" FILES ${GENERATOR_INFORMATION}) 
-
-
-include_directories(AFTER ${ASSIMP_INC_PATH})
-link_directories(${ASSIMP_BIN_PATH})
 
 if(VS_ADD_NATIVE_VISUALIZERS)	
 	file(GLOB_RECURSE NATVIS nvs/*.natvis)

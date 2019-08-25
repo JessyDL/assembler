@@ -162,7 +162,8 @@ namespace psl::cli
 				return res.size() > 0;
 			}
 
-			virtual void from_string(psl::string_view t){};
+			virtual bool from_string(psl::string_view t) = 0;
+			virtual psl::string8_t valid_arguments()	 = 0;
 
 			psl::string_view description() const noexcept { return m_Description; }
 			void description(psl::string_view descr) { m_Description = descr; };
@@ -196,7 +197,9 @@ namespace psl::cli
 
 		template <typename T>
 		struct is_vector : std::false_type
-		{};
+		{
+			using type = T;
+		};
 		template <typename T, typename... Ts>
 		struct is_vector<std::vector<T, Ts...>> : std::true_type
 		{
@@ -207,22 +210,29 @@ namespace psl::cli
 	template <typename T>
 	class value final : public details::value_base
 	{
+		using internal_type = typename details::is_vector<T>::type;
+
 	  public:
 		value(psl::string8_t name, const psl::array<psl::string8_t>& commands,
-			  std::optional<std::shared_ptr<T>> default_value = std::nullopt, bool optional = true)
-			: details::value_base(name, commands, optional, details::key_for<T>()), m_Default(default_value){};
-		value(psl::string8_t name, const psl::array<psl::string8_t>& commands, T default_value, bool optional = true)
+			  std::optional<std::shared_ptr<T>> default_value = std::nullopt, bool optional = true,
+			  std::optional<std::vector<internal_type>> allowed_values = std::nullopt)
+			: details::value_base(name, commands, optional, details::key_for<T>()), m_Default(default_value),
+			  m_AllowedValues(allowed_values){};
+		value(psl::string8_t name, const psl::array<psl::string8_t>& commands, T default_value, bool optional = true,
+			  std::optional<std::vector<internal_type>> allowed_values = std::nullopt)
 			: details::value_base(name, commands, optional, details::key_for<T>()),
-			  m_Default(std::make_shared<T>(default_value)){};
+			  m_Default(std::make_shared<T>(default_value)), m_AllowedValues(allowed_values){};
 
 		value(psl::string8_t name, psl::string_view description, const psl::array<psl::string8_t>& commands,
-			  std::optional<std::shared_ptr<T>> default_value = std::nullopt, bool optional = true)
+			  std::optional<std::shared_ptr<T>> default_value = std::nullopt, bool optional = true,
+			  std::optional<std::vector<internal_type>> allowed_values = std::nullopt)
 			: details::value_base(name, commands, optional, details::key_for<T>(), description),
-			  m_Default(default_value){};
+			  m_Default(default_value), m_AllowedValues(allowed_values){};
 		value(psl::string8_t name, psl::string_view description, const psl::array<psl::string8_t>& commands,
-			  T default_value, bool optional = true)
+			  T default_value, bool optional = true,
+			  std::optional<std::vector<internal_type>> allowed_values = std::nullopt)
 			: details::value_base(name, commands, optional, details::key_for<T>(), description),
-			  m_Default(std::make_shared<T>(default_value)){};
+			  m_Default(std::make_shared<T>(default_value)), m_AllowedValues(allowed_values){};
 
 		bool has_value() const noexcept { return m_Value || m_Default; }
 
@@ -273,7 +283,7 @@ namespace psl::cli
 			return cpy;
 		}
 
-		void from_string(psl::string_view string) override
+		bool from_string(psl::string_view string) override
 		{
 			if constexpr(!std::is_same<pack, T>::value)
 			{
@@ -282,28 +292,69 @@ namespace psl::cli
 					if constexpr(std::is_same<bool, T>::value)
 					{
 						set((m_Default) ? !(*m_Default.value()) : true);
-						return;
+						return true;
 					}
 				}
 
 				if constexpr(details::is_vector<T>::value)
 				{
-					using type = typename details::is_vector<T>::type;
 					auto res = utility::string::split(string, " ");
 					T val;
 					val.reserve(res.size());
 					for(const auto& entry : res)
-						val.emplace_back(utility::converter<type>::from_string(psl::to_string8_t(entry)));
+					{
+						val.emplace_back(utility::converter<internal_type>::from_string(psl::to_string8_t(entry)));
+						if(!valid(val[val.size() - 1])) return false;
+					}
 					set(val);
 				}
 				else
 				{
-					set(utility::converter<T>::from_string(psl::to_string8_t(string)));
+					auto res = utility::converter<internal_type>::from_string(psl::to_string8_t(string));
+					if(!valid(res)) return false;
+					set(res);
 				}
+				return true;
+			}
+			return false;
+		}
+		virtual psl::string8_t valid_arguments() override
+		{
+			if constexpr(!std::is_same<pack, T>::value)
+			{
+				if(!m_AllowedValues.has_value() || m_AllowedValues.value().size() == 0) return "";
+
+				psl::string8_t res;
+				for(const auto& value : m_AllowedValues.value())
+				{
+					res += utility::converter<internal_type>::to_string(value) + ", ";
+				}
+				res.resize(res.size() - 2);
+
+				auto last_index = res.find_last_of(',');
+				if(last_index != psl::string::npos)
+				{
+					res.erase(last_index, 1);
+					res.insert(last_index, " or");
+				}
+				return res;
+			}
+			else
+			{
+				return "";
 			}
 		}
 
 	  private:
+		bool valid(const internal_type& value)
+		{
+			if(!m_AllowedValues.has_value() || m_AllowedValues.value().size() == 0) return true;
+
+			return std::any_of(std::begin(m_AllowedValues.value()), std::end(m_AllowedValues.value()),
+							   [&value](const auto& v) { return v == value; });
+		}
+
+		std::optional<std::vector<internal_type>> m_AllowedValues;
 		std::optional<std::shared_ptr<T>> m_Value;
 		std::optional<std::shared_ptr<T>> m_Default;
 	};
@@ -451,8 +502,10 @@ namespace psl::cli
 				if(!validate(commands, true)) return;
 
 				std::queue<pack*> processed_packs;
-				parse(std::begin(commands), std::end(commands), processed_packs);
+				bool error = false;
+				parse(std::begin(commands), std::end(commands), processed_packs, error);
 
+				if(error) return;
 				while(processed_packs.size() > 0)
 				{
 					processed_packs.front()->operator()();
@@ -615,7 +668,7 @@ namespace psl::cli
 
 		psl::array<command>::const_iterator parse(psl::array<command>::const_iterator begin,
 												  psl::array<command>::const_iterator end,
-												  std::queue<pack*>& processed_packs)
+												  std::queue<pack*>& processed_packs, bool& error)
 		{
 			processed_packs.push(this);
 
@@ -635,12 +688,20 @@ namespace psl::cli
 					pack* new_child = value->as<cli::pack>().get_shared().operator->();
 					if(new_child != this)
 					{
-						command_it = std::prev(new_child->parse(std::next(command_it), end, processed_packs));
+						command_it = std::prev(new_child->parse(std::next(command_it), end, processed_packs, error));
 					}
 				}
 				else
 				{
-					value->from_string(command_it->args);
+					if(!value->from_string(command_it->args))
+					{
+						psl::cerr << "ERROR: an invalid argument was passed into '" << psl::to_pstring(value->name())
+								  << "'. please check '" << psl::to_pstring(command_it->args)
+								  << "'\n\tthe only allowed values are '" << psl::to_pstring(value->valid_arguments())
+								  << "'.\n";
+						error = true;
+						return end;
+					}
 				}
 				// psl::cout << '\t' << "command: " << psl::to_platform_string(command_it->cmd)
 				//		  << " depth: " << psl::to_platform_string(std::to_string(stack.size() - 1))

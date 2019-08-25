@@ -168,7 +168,7 @@ namespace assembler::generators
 								false,
 								true},
 				cli_value<std::vector<psl::string>>{
-					"types", "graphics types to support", {"types"}, {"vulkan", "gles"}, true}};
+					"types", "graphics types to support", {"types"}, {"vulkan", "gles"}, true, {{"vulkan", "gles"}}}};
 		}
 
 	  private:

@@ -1,7 +1,6 @@
 ﻿// assembler.cpp : Defines the entry point for the console application.
 //
 
-#define NOMINMAX
 #include "stdafx.h"
 #include <iostream>
 #include "psl/string_utils.h"

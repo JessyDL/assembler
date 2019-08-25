@@ -912,31 +912,13 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 
 	return true;
 }
-void shader::on_generate(psl::cli::pack& pack)
+void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, bool optimize,
+					  psl::array<psl::string> types)
 {
-	// -g -s -i "C:\Projects\data_old\Shaders\Surface\default.vert" -o
-	// "C:\Projects\data_old\Shaders\test_output\default.spv" -O -v -g -s -i
-	// "C:\Projects\data_old\Shaders\Surface\default.vert" -o
-	// "C:\Projects\data_old\Shaders\test_output\default-glsl.vert" --glsl -v
-
-	auto ifile		   = pack["input"]->as<psl::string>().get();
-	auto ofile		   = pack["output"]->as<psl::string>().get();
-	auto overwrite	 = pack["overwrite"]->as<bool>().get();
-	auto compiled_glsl = pack["compiled glsl"]->as<bool>().get();
-	auto optimize	  = pack["optimize"]->as<bool>().get();
-	m_Verbose		   = pack["verbose"]->as<bool>().get();
-	auto types		   = pack["types"]->as<std::vector<psl::string>>().get();
-
-	if(ofile.empty())
-	{
-		ofile			= ifile;
-		size_t last_dot = ofile.find_last_of('.');
-		ofile[last_dot] = '-';
-		ofile.append(".spv");
-	}
-
 	ifile = utility::platform::file::to_platform(ifile);
 	ofile = utility::platform::file::to_platform(ofile);
+	auto directory = ofile.substr(0, ofile.find_last_of("/\\"));
+	if(!utility::platform::directory::exists(directory)) utility::platform::directory::create(directory, true);
 
 	UID meta_UID = UID::generate();
 	if(utility::platform::file::exists(ofile + "." + ::meta::META_EXTENSION))
@@ -949,16 +931,6 @@ void shader::on_generate(psl::cli::pack& pack)
 	core::meta::shader shaderMeta{meta_UID};
 
 	psl::timer timer;
-
-
-	if(!overwrite && std::filesystem::exists(ofile))
-	{
-		utility::terminal::set_color(utility::terminal::color::YELLOW);
-		psl::cerr << psl::to_pstring("WARNING: the output file '" + ofile +
-									 "' already exists, and 'overwrite' has been set to false.");
-		utility::terminal::set_color(utility::terminal::color::WHITE);
-		goto end;
-	}
 
 	try
 	{
@@ -997,8 +969,8 @@ void shader::on_generate(psl::cli::pack& pack)
 
 		if(compiled_glsl)
 		{
-			utility::platform::file::write(ofile, shader.content);
-			psl::cout << psl::to_pstring("outputted the generated glsl file at " + ofile + "\n");
+			utility::platform::file::write(ofile + ".generated", shader.content);
+			psl::cout << psl::to_pstring("outputted the generated glsl file at '" + ofile + ".generated'\n");
 			goto end;
 		}
 
@@ -1016,12 +988,15 @@ void shader::on_generate(psl::cli::pack& pack)
 		else if(extension == ("tese"))
 			type = tools::glslang::type::tese;
 
+		std::optional<size_t> gles_version;
+		if(std::find(std::begin(types), std::end(types), "gles") != std::end(types)) gles_version = 300;
 
-		if(tools::glslang::compile(utility::application::path::get_path(), shader.content, ofile, type, optimize))
+		if(tools::glslang::compile(utility::application::path::get_path(), shader.content, ofile, type, optimize,
+								   gles_version))
 		{
-
-			psl::cout << psl::to_pstring("outputted the spv binary file at " + ofile + "\n");
 		}
+		else
+			goto end;
 
 		if(type == tools::glslang::type::vert)
 		{
@@ -1227,9 +1202,65 @@ void shader::on_generate(psl::cli::pack& pack)
 		serialization::serializer s;
 		format::container container;
 		s.serialize<serialization::encode_to_format>(&shaderMeta, container);
-		utility::platform::file::write(ofile + (".meta"), psl::from_string8_t(container.to_string()));
+		utility::platform::file::write(ofile + "-" + tools::glslang::type_str[(uint8_t)type] + (".meta"),
+									   psl::from_string8_t(container.to_string()));
 	}
 
 end:
 	if(m_Verbose) psl::cout << ("generating took ") << timer.elapsed().count() << ("ns") << std::endl;
+}
+void shader::on_generate(psl::cli::pack& pack)
+{
+	// -g -s -i "C:\Projects\data_old\Shaders\Surface\default.vert" -o
+	// "C:\Projects\data_old\Shaders\test_output\default.spv" -O -v -g -s -i
+	// "C:\Projects\data_old\Shaders\Surface\default.vert" -o
+	// "C:\Projects\data_old\Shaders\test_output\default-glsl.vert" --glsl -v
+
+	auto ifile		   = pack["input"]->as<psl::string>().get();
+	auto ofile		   = pack["output"]->as<psl::string>().get();
+	auto overwrite	 = pack["overwrite"]->as<bool>().get();
+	auto compiled_glsl = pack["compiled glsl"]->as<bool>().get();
+	auto optimize	  = pack["optimize"]->as<bool>().get();
+	m_Verbose		   = pack["verbose"]->as<bool>().get();
+	auto types		   = pack["types"]->as<std::vector<psl::string>>().get();
+
+	if(ifile[ifile.size() - 1] == '*')
+	{
+		auto directory = ifile.erase(ifile.size() - 1);
+		if(!utility::platform::directory::is_directory(directory))
+		{
+			directory.erase(directory.find_last_of('/')+1);
+		}
+		auto ifiles = utility::platform::directory::all_files(directory, true);
+		if(ofile.empty())
+		{
+			ofile = directory;
+		}
+
+		if(ofile[ofile.size() - 1] == '/' || ofile[ofile.size() - 1] == '\\') ofile.erase(ofile.size() - 1);
+
+		for(const auto& input : ifiles)
+		{
+			auto output = ofile + "/" + input.substr(directory.size());
+			if(size_t last_dot = output.find_last_of('.'); last_dot != std::string::npos)
+			{
+				output.erase(last_dot);
+			}
+			generate(input, output, compiled_glsl, optimize, types);
+		}
+	}
+	else
+	{
+		if(ofile.empty())
+		{
+			ofile			= ifile;
+			size_t last_dot = ofile.find_last_of('.');
+			ofile[last_dot] = '-';
+		}
+		else if(size_t last_dot = ofile.find_last_of('.'); last_dot != std::string::npos)
+		{
+			ofile.erase(last_dot);
+		}
+		generate(ifile, ofile, compiled_glsl, optimize, types);
+	}
 }

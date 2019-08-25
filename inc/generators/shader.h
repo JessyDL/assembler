@@ -190,6 +190,9 @@ namespace assembler::generators
 		bool construct(const file_data& fdata, result_shader& out, psl::string_view entry = ("main")) const;
 		void on_generate(psl::cli::pack& pack);
 
+		void generate(psl::string ifile, psl::string ofile, bool compiled_glsl, bool optimize,
+					  psl::array<psl::string> types);
+
 		std::unordered_map<psl::string, file_data> m_Cache; // Caches the files read. Note that the filepath
 															// will always be Unix style regardless of input
 		bool m_Verbose{false};

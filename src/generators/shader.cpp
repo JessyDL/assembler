@@ -917,15 +917,33 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 {
 	ifile = utility::platform::file::to_platform(ifile);
 	ofile = utility::platform::file::to_platform(ofile);
+
 	auto directory = ofile.substr(0, ofile.find_last_of("/\\"));
 	if(!utility::platform::directory::exists(directory)) utility::platform::directory::create(directory, true);
 
+	auto index				  = ifile.find_last_of(("."));
+	auto extension			  = ifile.substr(index + 1);
+	tools::glslang::type type = tools::glslang::type::vert;
+	if(extension == ("frag"))
+		type = tools::glslang::type::frag;
+	else if(extension == ("tesc"))
+		type = tools::glslang::type::tesc;
+	else if(extension == ("geom"))
+		type = tools::glslang::type::geom;
+	else if(extension == ("comp"))
+		type = tools::glslang::type::comp;
+	else if(extension == ("tese"))
+		type = tools::glslang::type::tese;
+
+	auto ofile_meta = ofile + "-" + tools::glslang::type_str[(uint8_t)type] + "." + ::meta::META_EXTENSION;
+
+
 	UID meta_UID = UID::generate();
-	if(utility::platform::file::exists(ofile + "." + ::meta::META_EXTENSION))
+	if(utility::platform::file::exists(ofile_meta))
 	{
 		::meta::file* original = nullptr;
 		serialization::serializer temp_s;
-		temp_s.deserialize<serialization::decode_from_format>(original, ofile + "." + ::meta::META_EXTENSION);
+		temp_s.deserialize<serialization::decode_from_format>(original, ofile_meta);
 		meta_UID = original->ID();
 	}
 	core::meta::shader shaderMeta{meta_UID};
@@ -974,19 +992,6 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 			goto end;
 		}
 
-		auto index				  = ifile.find_last_of(("."));
-		auto extension			  = ifile.substr(index + 1);
-		tools::glslang::type type = tools::glslang::type::vert;
-		if(extension == ("frag"))
-			type = tools::glslang::type::frag;
-		else if(extension == ("tesc"))
-			type = tools::glslang::type::tesc;
-		else if(extension == ("geom"))
-			type = tools::glslang::type::geom;
-		else if(extension == ("comp"))
-			type = tools::glslang::type::comp;
-		else if(extension == ("tese"))
-			type = tools::glslang::type::tese;
 
 		std::optional<size_t> gles_version;
 		if(std::find(std::begin(types), std::end(types), "gles") != std::end(types)) gles_version = 300;
@@ -1202,8 +1207,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 		serialization::serializer s;
 		format::container container;
 		s.serialize<serialization::encode_to_format>(&shaderMeta, container);
-		utility::platform::file::write(ofile + "-" + tools::glslang::type_str[(uint8_t)type] + (".meta"),
-									   psl::from_string8_t(container.to_string()));
+		utility::platform::file::write(ofile_meta, psl::from_string8_t(container.to_string()));
 	}
 
 end:
@@ -1229,7 +1233,7 @@ void shader::on_generate(psl::cli::pack& pack)
 		auto directory = ifile.erase(ifile.size() - 1);
 		if(!utility::platform::directory::is_directory(directory))
 		{
-			directory.erase(directory.find_last_of('/')+1);
+			directory.erase(directory.find_last_of('/') + 1);
 		}
 		auto ifiles = utility::platform::directory::all_files(directory, true);
 		if(ofile.empty())

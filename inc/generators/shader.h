@@ -2,13 +2,16 @@
 //#include "cli_pack.h"
 //#include "bash_terminal.h"
 //#include "bash_utils.h"
-#include "string_utils.h"
+#define NO_MIN_MAX
+#undef MIN
+#undef MAX
+#include "psl/string_utils.h"
 #include "cli/value.h"
-#include "terminal_utils.h"
-#include "../../psl/inc/meta.h"
+#include "psl/terminal_utils.h"
+#include "psl/meta.h"
 #include "meta/shader.h"
 #include <set>
-#include "timer.h"
+#include "psl/timer.h"
 
 namespace assembler::generators
 {
@@ -95,8 +98,8 @@ namespace assembler::generators
 			{("bool"), 1},	{("int"), 4},		  {("uint"), 4},	  {("float"), 4},	  {("double"), 8},
 			{("sampler"), 0}, {("sampler2D"), 0}, {("sampler3D"), 0}, {("samplerCube"), 0}};
 
-		std::unordered_map<psl::string, size_t> m_TypeToFormat{{("vec4"), 109}, {("mat4"), 109}, {("vec3"), 106},
-															   {("mat3"), 106}, {("vec2"), 103}, {("mat2"), 103}};
+		std::unordered_map<psl::string, size_t> m_TypeToFormat{{("vec4"), 72}, {("mat4"), 72}, {("vec3"), 69},
+															   {("mat3"), 69}, {("vec2"), 66}, {("mat2"), 66}};
 
 		std::unordered_map<psl::string, size_t> m_DescriptorType{
 			{("ubo"), 6}, {("ssbo"), 7}, {("combined_sampler"), 1}};
@@ -163,7 +166,9 @@ namespace assembler::generators
 								"should verbose information be printed about the internal process?",
 								{"verbose", "v"},
 								false,
-								true}};
+								true},
+				cli_value<std::vector<psl::string>>{
+					"types", "graphics types to support", {"types"}, {"vulkan", "gles"}, true}};
 		}
 
 	  private:

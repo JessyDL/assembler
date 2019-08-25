@@ -1,0 +1,3 @@
+[submodule "paradigm"]
+	path = paradigm
+	url = https://github.com/JessyDL/paradigm

@@ -1,11 +1,14 @@
 #pragma once
+#define NO_MIN_MAX
+#undef MIN
+#undef MAX
 #include <memory>
 #include <optional>
-#include "vector.h"
-#include "array.h"
-#include "ustring.h"
-#include "string_utils.h"
-#include "memory/region.h"
+#include "psl/array.h"
+#include "psl/static_array.h"
+#include "psl/ustring.h"
+#include "psl/string_utils.h"
+#include "psl/memory/region.h"
 #include <queue>
 
 ////namespace psl
@@ -190,6 +193,15 @@ namespace psl::cli
 			bool m_Optional;
 			type_key_t m_ID;
 		};
+
+		template <typename T>
+		struct is_vector : std::false_type
+		{};
+		template <typename T, typename... Ts>
+		struct is_vector<std::vector<T, Ts...>> : std::true_type
+		{
+			using type = T;
+		};
 	} // namespace details
 
 	template <typename T>
@@ -274,7 +286,20 @@ namespace psl::cli
 					}
 				}
 
-				set(utility::converter<T>::from_string(psl::to_string8_t(string)));
+				if constexpr(details::is_vector<T>::value)
+				{
+					using type = typename details::is_vector<T>::type;
+					auto res = utility::string::split(string, " ");
+					T val;
+					val.reserve(res.size());
+					for(const auto& entry : res)
+						val.emplace_back(utility::converter<type>::from_string(psl::to_string8_t(entry)));
+					set(val);
+				}
+				else
+				{
+					set(utility::converter<T>::from_string(psl::to_string8_t(string)));
+				}
 			}
 		}
 
@@ -301,7 +326,7 @@ namespace psl::cli
 			(add(std::forward<Ts>(values)), ...);
 		}
 
-		
+
 		template <typename... Ts>
 		pack(std::function<void(psl::cli::pack&)>&& fn, Ts&&... values)
 		{
@@ -405,8 +430,7 @@ namespace psl::cli
 					if(!is_long_command && cmd_end - cmd_start > 1)
 					{
 						psl::cerr << "ERROR: a short command cannot have multiple characters, please check: -"
-								  << psl::to_platform_string(
-										 psl::string_view(view.data() + cmd_start, cmd_end - cmd_start))
+								  << psl::to_pstring(psl::string_view(view.data() + cmd_start, cmd_end - cmd_start))
 								  << "\n";
 						return;
 					}
@@ -449,13 +473,13 @@ namespace psl::cli
 
 		void print_help(size_t depth = 0) const noexcept
 		{
-			psl::cout << psl::pstring(80, '-') << "\n";
+			psl::cout << psl::pstring_t(80, '-') << "\n";
 			for(const auto& v : m_Values)
 			{
-				psl::cout << psl::pstring(depth, '\t') << psl::to_platform_string(v->name())
-						  << ((v->optional()) ? "* " : " ") << psl::to_platform_string(v->description()) << "\n";
+				psl::cout << psl::pstring_t(depth, '\t') << psl::to_pstring(v->name()) << ((v->optional()) ? "* " : " ")
+						  << psl::to_pstring(v->description()) << "\n";
 			}
-			psl::cout << psl::pstring(80, '-') << "\n";
+			psl::cout << psl::pstring_t(80, '-') << "\n";
 		}
 
 	  private:
@@ -476,8 +500,7 @@ namespace psl::cli
 								[v](psl::array<command>::const_iterator it) { return v->contains_command(it->cmd); }))
 				{
 					if(print_reason)
-						psl::cout << "ERROR: missing required command '" << psl::to_platform_string(v->name())
-								  << "'.\n";
+						psl::cout << "ERROR: missing required command '" << psl::to_pstring(v->name()) << "'.\n";
 					failed = true;
 					return false;
 				}
@@ -501,7 +524,7 @@ namespace psl::cli
 					if(root)
 					{
 						psl::cout << "ERROR: invalid command detected. the command '"
-								  << psl::to_platform_string(command_it->cmd) << "' was not found.\n";
+								  << psl::to_pstring(command_it->cmd) << "' was not found.\n";
 						failed = true;
 					}
 					return internal_validate(owned_values, failed, print_reason) ? command_it : end;
@@ -538,9 +561,9 @@ namespace psl::cli
 			size_t col_2 = 32;
 			if(depth == 0)
 			{
-				psl::cout << "name" << psl::pstring(col_1 - 4, ' ') << "| commands" << psl::pstring(col_2 - 8, ' ')
+				psl::cout << "name" << psl::pstring_t(col_1 - 4, ' ') << "| commands" << psl::pstring_t(col_2 - 8, ' ')
 						  << "| description\n";
-				psl::cout << psl::pstring(128, '-') << "\n";
+				psl::cout << psl::pstring_t(128, '-') << "\n";
 			}
 			for(const auto& v : m_Values)
 			{
@@ -549,10 +572,10 @@ namespace psl::cli
 				size_t padding_1 = depth * 2 + v->name().size() + (v->optional() ? 1 : 2);
 				padding_1		 = (padding_1 >= col_1) ? 1 : col_1 - padding_1;
 				size_t padding_2 = (commands.size() >= col_2) ? 1 : col_2 - commands.size();
-				psl::cout << psl::pstring(depth * 2, ' ') << psl::to_platform_string(v->name())
-						  << ((v->optional()) ? " " : "* ") << psl::pstring(padding_1, ' ') << "| "
-						  << psl::to_platform_string(commands) << psl::pstring(padding_2, ' ') << "| "
-						  << psl::to_platform_string(v->description()) << "\n";
+				psl::cout << psl::pstring_t(depth * 2, ' ') << psl::to_pstring(v->name())
+						  << ((v->optional()) ? " " : "* ") << psl::pstring_t(padding_1, ' ') << "| "
+						  << psl::to_pstring(commands) << psl::pstring_t(padding_2, ' ') << "| "
+						  << psl::to_pstring(v->description()) << "\n";
 				if(v->is_a<cli::pack>())
 				{
 					pack* new_child = v->as<cli::pack>().get_shared().operator->();

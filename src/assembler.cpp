@@ -1,11 +1,13 @@
 ﻿// assembler.cpp : Defines the entry point for the console application.
 //
 
+#define NOMINMAX
 #include "stdafx.h"
 #include <iostream>
-#include "string_utils.h"
-#include "ustring.h"
+#include "psl/string_utils.h"
+#include "psl/ustring.h"
 #include <array>
+
 #include <windows.h>
 #include <stack>
 
@@ -43,13 +45,13 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 
 static psl::string_view get_input()
 {
-	static psl::platform_string input(4096, ('\0'));
-	std::memset(input.data(), ('\0'), sizeof(psl::platform_char_t) * input.size());
+	static psl::pstring_t input(4096, ('\0'));
+	std::memset(input.data(), ('\0'), sizeof(psl::platform::char_t) * input.size());
 	psl::cin.getline(input.data(), input.size() - 1);
 
 #if WIN32
 	static psl::string override;
-	override = psl::from_platform_string(input);
+	override = psl::to_string8_t(input);
 	return {override.data(), psl::strlen(override.data())};
 #else
 	return {input.data(), psl::strlen(input.data())};
@@ -57,15 +59,42 @@ static psl::string_view get_input()
 }
 
 void shader(pack& p) { psl::cout << "look at that, a shader callback\n"; }
-void generator(pack& p) 
-{ 
-	psl::cout << "look at that, a callback\n"; 
+void generator(pack& p) { psl::cout << "look at that, a callback\n"; }
+
+
+template <typename T>
+void advance_impl(std::reference_wrapper<T>& target, std::intptr_t count)
+{
+	using type = std::remove_const_t<T>;
+	// const_cast<std::reference_wrapper<type>&>(target) = *((type*)(&target.get()) + count);
+	target = *((type*)&target.get() + count);
 }
+
+template <typename... Ts>
+void advance_tuple(std::tuple<Ts...>& target, std::uintptr_t count)
+{
+	(advance_impl(std::get<Ts>(target), count), ...);
+}
+
 
 int main(int argc, char* argv[])
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+
+	std::tuple<std::vector<int>, std::vector<float>> ta1 = {{10, -5}, {5.0f, -9.6f}};
+
+	std::tuple<std::reference_wrapper<int>, std::reference_wrapper<float>> t3{std::get<0>(ta1)[0], std::get<1>(ta1)[0]};
+	//advance_tuple(t3, 1);
+	// t3	 = std::tuple<int&, float&>(advance(std::get<0>(t3), 1), advance(std::get<1>(t3), 1));
+	//auto x = std::get<0>(t3);
+
+	std::tuple<int*, float*> t5{&std::get<0>(ta1)[0], &std::get<1>(ta1)[0]};
+
+	std::tuple<int&, float&>& t4 = *reinterpret_cast<std::tuple<int&, float&>*>(&t5);
+	std::get<0>(t4) += 5;
+	//return x;
+
 
 	SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE);
 
@@ -79,7 +108,7 @@ int main(int argc, char* argv[])
 	cfi.dwFontSize.Y = 14;
 	cfi.FontFamily   = FF_MODERN;
 	cfi.FontWeight   = FW_NORMAL;
-	wcscpy(cfi.FaceName, L"Consolas");
+	wcscpy_s(cfi.FaceName, L"Consolas");
 	SetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &cfi);
 
 	// psl::string x2 = _T("Árvíztűrő tükörfúrógép");
@@ -98,9 +127,10 @@ int main(int argc, char* argv[])
 	assembler::generators::shader shader_gen{};
 
 	psl::cli::pack model_pack{value<psl::string>{"input", "input file", {"input", "i"}, "", false},
-							   value<psl::string>{"output", "output file", {"output", "o"}}};
-	psl::cli::pack generator_pack{generator, value<pack>{"shader", "glsl to spir-v compiler", {"shader", "s"}, std::move(shader_gen.pack())},
-								  value<pack>{"model", "model file importer", {"model", "m"}, model_pack}};
+							  value<psl::string>{"output", "output file", {"output", "o"}}};
+	psl::cli::pack generator_pack{
+		value<pack>{"shader", "glsl to spir-v compiler", {"shader", "s"}, std::move(shader_gen.pack())},
+		value<pack>{"model", "model file importer", {"model", "m"}, model_pack}};
 
 	psl::cli::pack root{value<bool>{"exit", "quits the application", {"exit", "quit", "q"}, false},
 						value<pack>{"generator", "generator for various data files", {"generate", "g"}, generator_pack}

@@ -1,6 +1,8 @@
 ﻿#include "stdafx.h"
 #include "glslang_utils.h"
 #include <stdlib.h>
+#include "psl/platform_utils.h"
+
 using namespace tools;
 
 static const psl::string type_str[]{("vert"), ("tesc"), ("tese"), ("geom"), ("frag"), ("comp")};
@@ -17,18 +19,19 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 	}
 	while(!utility::platform::file::read(input))
 	{
-		Sleep(150);
+		std::this_thread::sleep_for(std::chrono::milliseconds(150));
 	}
 
-	compiler.append("glslangValidator.exe");
-	if(!utility::platform::file::exists(compiler))
+	auto full_path = compiler + "glslangValidator.exe";
+
+	if(!utility::platform::file::exists(full_path))
 	{
 		psl::cerr << "ERROR: missing 'glslangValidator'\n";
 		utility::platform::file::erase(input);
 		return false;
 	}
 	psl::string ofile   = utility::platform::file::to_platform(outputfile);
-	psl::string command = compiler + " -S " + type_str[(uint8_t)type] + " -V " + input + " -o \"" + ofile;
+	psl::string command = "cd \"" + compiler + "\" &&"+ " glslangValidator.exe -S " + type_str[(uint8_t)type] + " -V \"" + input + "\" -o \"" + ofile + '"';
 	if(std::system(command.c_str()) != 0)
 	{
 		utility::platform::file::erase(input);
@@ -38,7 +41,7 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 
 	while(!utility::platform::file::read(ofile))
 	{
-		Sleep(150);
+		std::this_thread::sleep_for(std::chrono::milliseconds(150));
 	}
 
 	if(optimize)

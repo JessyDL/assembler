@@ -601,7 +601,7 @@ bool shader::parse_includes(file_data& data)
 	return true;
 }
 
-bool shader::parse_using(file_data& data, psl::string name, psl::string* type_out, psl::string* name_out)
+bool shader::parse_using(file_data& data, psl::string name, psl::string& type_out, psl::string& name_out)
 {
 	if(auto using_n = data.content.find(("#using ") + name); using_n != psl::string::npos)
 	{
@@ -619,14 +619,16 @@ bool shader::parse_using(file_data& data, psl::string name, psl::string* type_ou
 		divider_n += 1;
 		auto type_n		= data.content.find_first_not_of((" \t"), divider_n);
 		auto type_n_end = data.content.find_first_of((" \t\r\n"), type_n);
-		*type_out		= psl::string{&data.content[type_n], type_n_end - type_n};
+		type_out		= psl::string{&data.content[type_n], type_n_end - type_n};
 
 		auto name_n = data.content.find_first_not_of((" \t"), type_n_end);
 		if(endl_n > name_n)
 		{
 			auto name_n_end = data.content.find_first_of((" \t\n\r"), name_n);
-			*name_out		= psl::string{&data.content[name_n], name_n_end - name_n};
+			name_out		= psl::string{&data.content[name_n], name_n_end - name_n};
 		}
+		else
+			name_out = "";
 		data.content.erase(std::begin(data.content) + using_n, std::begin(data.content) + endl_n);
 		// data.content.replace(std::begin(data.content) + using_n, std::begin(data.content) + endl_n,
 		// psl::string(endl_n - using_n, (' ')));
@@ -636,12 +638,9 @@ bool shader::parse_using(file_data& data, psl::string name, psl::string* type_ou
 
 bool shader::parse_using(file_data& data)
 {
-	auto using_out_n   = data.content.find(("#using out"));
-	auto using_descr_n = data.content.find(("#using descriptors"));
-
-	if(parse_using(data, ("in"), &data.using_in_type, &data.using_in_name) &&
-	   parse_using(data, ("out"), &data.using_out_type, &data.using_out_name) &&
-	   parse_using(data, ("descriptors"), &data.using_descr_type, &data.using_descr_name))
+	if(parse_using(data, ("in"), data.using_in_type, data.using_in_name) &&
+	   parse_using(data, ("out"), data.using_out_type, data.using_out_name) &&
+	   parse_using(data, ("descriptors"), data.using_descr_type, data.using_descr_name))
 		return true;
 
 	return false;
@@ -888,13 +887,10 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 		for(const auto& a : descr.elements)
 		{
 			inject += ("layout (binding = ") + psl::from_string8_t(utility::to_string(a.location.value())) + (") ") +
-					  a.bind_qualifier.value_or(("")) + (" ") + a.type + (" ") +
+					  a.bind_qualifier.value_or(("")) + (" ") + a.buffer.value_or(a.type) + (" ") +
 					  ((!a.inlined_scope.has_value())
-						   ? psl::string(fdata.using_descr_name + a.name) + (";\n")
-						   : ("\n") + a.inlined_scope.value() + fdata.using_descr_name + a.name + (";\n"));
-			if(!fdata.using_descr_name.empty())
-				utility::string::replace_all(res, fdata.using_descr_name + (".") + a.name,
-											 fdata.using_descr_name + a.name);
+						   ? a.name + (";\n")
+						   : ("\n") + a.inlined_scope.value() + a.name + (";\n"));
 
 			/*parsed_scope glsl_struct;
 			if(!find(fdata, fdata.using_descr_type + ("::") + a.type, block_type::struct_t, &glsl_struct))

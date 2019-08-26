@@ -176,7 +176,7 @@ namespace assembler::generators
 		bool parse_includes(file_data& data);
 
 
-		bool parse_using(file_data& data, psl::string name, psl::string* type_out, psl::string* name_out);
+		bool parse_using(file_data& data, psl::string name, psl::string& type_out, psl::string& name_out);
 
 		bool parse_using(file_data& data);
 

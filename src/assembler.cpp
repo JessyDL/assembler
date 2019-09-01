@@ -25,11 +25,11 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 	// Handle the CTRL-C signal.
 	case CTRL_C_EVENT:
 		// entry.pop();
-		psl::cout << "^C" << std::endl;
+		std::cout << "^C" << std::endl;
 		return (TRUE);
 
 	// CTRL-CLOSE: confirm that the user wants to exit.
-	case CTRL_CLOSE_EVENT: psl::cout << "exiting..." << std::endl; return (TRUE);
+	case CTRL_CLOSE_EVENT: std::cout << "exiting..." << std::endl; return (TRUE);
 
 	// Pass other signals to the next handler.
 	case CTRL_BREAK_EVENT: return FALSE;
@@ -44,9 +44,9 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 
 static psl::string_view get_input()
 {
-	static psl::pstring_t input(4096, ('\0'));
+	static psl::string8_t input(4096, ('\0'));
 	std::memset(input.data(), ('\0'), sizeof(psl::platform::char_t) * input.size());
-	psl::cin.getline(input.data(), input.size() - 1);
+	std::cin.getline(input.data(), input.size() - 1);
 
 #if WIN32
 	static psl::string override;
@@ -56,9 +56,6 @@ static psl::string_view get_input()
 	return {input.data(), psl::strlen(input.data())};
 #endif
 }
-
-void shader(pack& p) { psl::cout << "look at that, a shader callback\n"; }
-void generator(pack& p) { psl::cout << "look at that, a callback\n"; }
 
 
 template <typename T>
@@ -118,7 +115,7 @@ int main(int argc, char* argv[])
 
 	// psl::cout << x2 << _T(" ") << x3 << " " << x4 << std::endl;
 
-	psl::cout << _T("welcome to assembler, use -h or --help to get information on the commands.\nyou can also pass ")
+	std::cout << _T("welcome to assembler, use -h or --help to get information on the commands.\nyou can also pass ")
 				 _T("the specific command (or its chain) after --help to get more information of that specific ")
 				 _T("command, such as '--help generate shader'.")
 			  << std::endl;

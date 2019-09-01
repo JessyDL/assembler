@@ -10,6 +10,7 @@
 #include "psl/string_utils.h"
 #include "psl/memory/region.h"
 #include <queue>
+#include <iostream>
 
 ////namespace psl
 ////{
@@ -447,7 +448,7 @@ namespace psl::cli
 					if(token_offset == psl::string_view::npos)
 					{
 						// error out
-						psl::cerr << "ERROR: opened a delimiter (\"), but did not close it again.\n";
+						std::cerr << "ERROR: opened a delimiter (\"), but did not close it again.\n";
 						return;
 					}
 					occupied_ranges.emplace_back(std::pair{begin_token, token_offset});
@@ -480,14 +481,14 @@ namespace psl::cli
 
 					if(!is_long_command && cmd_end - cmd_start > 1)
 					{
-						psl::cerr << "ERROR: a short command cannot have multiple characters, please check: -"
-								  << psl::to_pstring(psl::string_view(view.data() + cmd_start, cmd_end - cmd_start))
+						std::cerr << "ERROR: a short command cannot have multiple characters, please check: -"
+								  << psl::to_string8_t(psl::string_view(view.data() + cmd_start, cmd_end - cmd_start))
 								  << "\n";
 						return;
 					}
 					if(!is_long_command && cmd_end - cmd_start == 0)
 					{
-						psl::cerr << "ERROR: a short command supplied, but no character behind it, please check the "
+						std::cerr << "ERROR: a short command supplied, but no character behind it, please check the "
 									 "free floating '-' \n";
 						return;
 					}
@@ -526,13 +527,13 @@ namespace psl::cli
 
 		void print_help(size_t depth = 0) const noexcept
 		{
-			psl::cout << psl::pstring_t(80, '-') << "\n";
+			std::cout << psl::string8_t(80, '-') << "\n";
 			for(const auto& v : m_Values)
 			{
-				psl::cout << psl::pstring_t(depth, '\t') << psl::to_pstring(v->name()) << ((v->optional()) ? "* " : " ")
-						  << psl::to_pstring(v->description()) << "\n";
+				std::cout << psl::string8_t(depth, '\t') << psl::to_string8_t(v->name()) << ((v->optional()) ? "* " : " ")
+						  << psl::to_string8_t(v->description()) << "\n";
 			}
-			psl::cout << psl::pstring_t(80, '-') << "\n";
+			std::cout << psl::string8_t(80, '-') << "\n";
 		}
 
 	  private:
@@ -553,7 +554,7 @@ namespace psl::cli
 								[v](psl::array<command>::const_iterator it) { return v->contains_command(it->cmd); }))
 				{
 					if(print_reason)
-						psl::cout << "ERROR: missing required command '" << psl::to_pstring(v->name()) << "'.\n";
+						std::cout << "ERROR: missing required command '" << psl::to_string8_t(v->name()) << "'.\n";
 					failed = true;
 					return false;
 				}
@@ -576,8 +577,8 @@ namespace psl::cli
 				{
 					if(root)
 					{
-						psl::cout << "ERROR: invalid command detected. the command '"
-								  << psl::to_pstring(command_it->cmd) << "' was not found.\n";
+						std::cout << "ERROR: invalid command detected. the command '"
+								  << psl::to_string8_t(command_it->cmd) << "' was not found.\n";
 						failed = true;
 					}
 					return internal_validate(owned_values, failed, print_reason) ? command_it : end;
@@ -614,9 +615,9 @@ namespace psl::cli
 			size_t col_2 = 32;
 			if(depth == 0)
 			{
-				psl::cout << "name" << psl::pstring_t(col_1 - 4, ' ') << "| commands" << psl::pstring_t(col_2 - 8, ' ')
+				std::cout << "name" << psl::string8_t(col_1 - 4, ' ') << "| commands" << psl::string8_t(col_2 - 8, ' ')
 						  << "| description\n";
-				psl::cout << psl::pstring_t(128, '-') << "\n";
+				std::cout << psl::string8_t(128, '-') << "\n";
 			}
 			for(const auto& v : m_Values)
 			{
@@ -625,10 +626,10 @@ namespace psl::cli
 				size_t padding_1 = depth * 2 + v->name().size() + (v->optional() ? 1 : 2);
 				padding_1		 = (padding_1 >= col_1) ? 1 : col_1 - padding_1;
 				size_t padding_2 = (commands.size() >= col_2) ? 1 : col_2 - commands.size();
-				psl::cout << psl::pstring_t(depth * 2, ' ') << psl::to_pstring(v->name())
-						  << ((v->optional()) ? " " : "* ") << psl::pstring_t(padding_1, ' ') << "| "
-						  << psl::to_pstring(commands) << psl::pstring_t(padding_2, ' ') << "| "
-						  << psl::to_pstring(v->description()) << "\n";
+				std::cout << psl::string8_t(depth * 2, ' ') << psl::to_string8_t(v->name())
+						  << ((v->optional()) ? " " : "* ") << psl::string8_t(padding_1, ' ') << "| "
+						  << psl::to_string8_t(commands) << psl::string8_t(padding_2, ' ') << "| "
+						  << psl::to_string8_t(v->description()) << "\n";
 				if(v->is_a<cli::pack>())
 				{
 					pack* new_child = v->as<cli::pack>().get_shared().operator->();
@@ -695,9 +696,9 @@ namespace psl::cli
 				{
 					if(!value->from_string(command_it->args))
 					{
-						psl::cerr << "ERROR: an invalid argument was passed into '" << psl::to_pstring(value->name())
-								  << "'. please check '" << psl::to_pstring(command_it->args)
-								  << "'\n\tthe only allowed values are '" << psl::to_pstring(value->valid_arguments())
+						std::cerr << "ERROR: an invalid argument was passed into '" << psl::to_string8_t(value->name())
+								  << "'. please check '" << psl::to_string8_t(command_it->args)
+								  << "'\n\tthe only allowed values are '" << psl::to_string8_t(value->valid_arguments())
 								  << "'.\n";
 						error = true;
 						return end;

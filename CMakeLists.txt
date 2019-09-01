@@ -9,6 +9,7 @@ include(FetchContent)
 # -------------------------------------------------------------------------------------------------
 
 # required call to get the paradigm engine core here, and setting up the compile defines
+SET (BUILD_SHARED_LIBS OFF)
 add_subdirectory(paradigm)
 
 get_directory_property(PE_COMPILE_OPTIONS DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS)
@@ -86,14 +87,16 @@ add_definitions(${PE_DEFINES})
 add_executable(${LOCAL_PROJECT} ${INC} ${SRC} ${GENERATOR_INFORMATION} ${NATVIS})
 
 set_property(TARGET ${LOCAL_PROJECT} PROPERTY FOLDER "tools")
-add_dependencies(${LOCAL_PROJECT} glslang assimp)
+add_dependencies(${LOCAL_PROJECT} glslang)
 target_link_libraries(${LOCAL_PROJECT} PUBLIC 
-	${PROJECT_PSL} ${PE_DL_LIBS} ${PROJECT_CORE})
+	${PROJECT_PSL} ${PE_DL_LIBS} ${PROJECT_CORE} assimp)
 	
 
 target_include_directories(${LOCAL_PROJECT}
-    PUBLIC 
-        ${CMAKE_CURRENT_SOURCE_DIR}/inc
+	PUBLIC 
+		${CMAKE_CURRENT_SOURCE_DIR}/inc
+		${assimp_SOURCE_DIR}/include
+		${assimp_BINARY_DIR}/include
 )
 
 target_compile_features(${LOCAL_PROJECT} PUBLIC ${PE_COMPILER_FEATURES})

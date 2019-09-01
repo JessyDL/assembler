@@ -5,7 +5,7 @@
 #include "psl/application_utils.h"
 #include "glslang_utils.h"
 #include "gfx/types.h"
-
+#include <iostream>
 // todo we should figure out the bindings dynamically instead of having them written into the files, and then
 // potentially safeguard the user from accidentally merging shaders together that do not work together
 
@@ -25,8 +25,8 @@ bool write_error(const shader::file_data& data, size_t current_offset, psl::stri
 	psl::string_view current_view{data.content.data(), current_offset};
 	auto line_number = utility::string::count(current_view, "\n");
 	utility::terminal::set_color(utility::terminal::color::RED);
-	psl::cerr << psl::to_pstring("ERROR: " + message + "\n");
-	psl::cerr << psl::to_pstring("\tat line '" + psl::from_string8_t(utility::to_string(line_number)) + "' of '" +
+	std::cerr << psl::to_string8_t("ERROR: " + message + "\n");
+	std::cerr << psl::to_string8_t("\tat line '" + psl::from_string8_t(utility::to_string(line_number)) + "' of '" +
 								 data.filename + "'\n");
 	utility::terminal::set_color(utility::terminal::color::WHITE);
 	return false;
@@ -541,7 +541,7 @@ bool shader::parse_includes(file_data& data)
 			utility::terminal::set_color(utility::terminal::color::RED);
 			psl::cerr << ("ERROR: could not deduce the input file's path.\n");
 			psl::cerr << ("\tthe include's opening directive was not found, are you missing a \" or ' ?\n");
-			psl::cerr << psl::to_pstring("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
+			std::cerr << psl::to_string8_t("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
 										 "\n");
 			utility::terminal::set_color(utility::terminal::color::WHITE);
 			return false;
@@ -560,7 +560,7 @@ bool shader::parse_includes(file_data& data)
 			psl::cerr
 				<< ("\tthe include directive was opened, but not closed, please add a \" or ' at the end of the "
 					"line.\n");
-			psl::cerr << psl::to_pstring("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
+			std::cerr << psl::to_string8_t("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
 										 "\n");
 			utility::terminal::set_color(utility::terminal::color::WHITE);
 			return false;
@@ -582,9 +582,9 @@ bool shader::parse_includes(file_data& data)
 			auto line_number = utility::string::count(current_view, ("\n"));
 			utility::terminal::set_color(utility::terminal::color::RED);
 			psl::cerr << ("ERROR: include file not found.\n");
-			psl::cerr << psl::to_pstring("\tit was defined as '" + include_def + "' and transformed into '" +
+			std::cerr << psl::to_string8_t("\tit was defined as '" + include_def + "' and transformed into '" +
 										 include_path + "'\n");
-			psl::cerr << psl::to_pstring("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
+			std::cerr << psl::to_string8_t("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
 										 "\n");
 			utility::terminal::set_color(utility::terminal::color::WHITE);
 			return false;
@@ -611,8 +611,8 @@ bool shader::parse_using(file_data& data, psl::string name, psl::string& type_ou
 		if(divider_n > endl_n)
 		{
 			psl::cerr << ("ERROR: malformed #using block.'\n");
-			psl::cerr << psl::to_pstring("\tthe block for '#using " + name + "' did not define a ':'.\n");
-			psl::cerr << psl::to_pstring("\tin file '" + data.filename + "\n");
+			std::cerr << psl::to_string8_t("\tthe block for '#using " + name + "' did not define a ':'.\n");
+			std::cerr << psl::to_string8_t("\tin file '" + data.filename + "\n");
 			return false;
 		}
 
@@ -673,14 +673,14 @@ bool shader::cache_file(const psl::string& file)
 		if(auto res = utility::platform::file::read(file); !res)
 		{
 			utility::terminal::set_color(utility::terminal::color::RED);
-			psl::cerr << psl::to_pstring("ERROR: missing file, no file was found at the location: " + file);
+			std::cerr << psl::to_string8_t("ERROR: missing file, no file was found at the location: " + file);
 			utility::terminal::set_color(utility::terminal::color::WHITE);
 			return false;
 		}
 		else if(!utf8::is_valid(res.value().begin(), res.value().end()))
 		{
 			utility::terminal::set_color(utility::terminal::color::RED);
-			psl::cerr << psl::to_pstring("ERROR: the encoding was not valid UTF-8 for the file: " + file);
+			std::cerr << psl::to_string8_t("ERROR: the encoding was not valid UTF-8 for the file: " + file);
 			utility::terminal::set_color(utility::terminal::color::WHITE);
 			return false;
 		}
@@ -711,7 +711,7 @@ psl::string shader::construct(const file_data& fdata, std::set<psl::string_view>
 			auto it = m_Cache.find(inc.first);
 			if(it == std::end(m_Cache))
 			{
-				psl::cerr << psl::to_pstring("the include" + inc.first + " is not present in the cache.\n");
+				std::cerr << psl::to_string8_t("the include" + inc.first + " is not present in the cache.\n");
 				continue;
 			}
 			auto sub_res{construct(it->second, includes)};
@@ -750,7 +750,7 @@ bool shader::find(const file_data& fdata, const psl::string& name, block_type ty
 		auto it = m_Cache.find(include.first);
 		if(it == std::end(m_Cache))
 		{
-			psl::cerr << psl::to_pstring("the include" + include.first + " is not present in the cache.\n");
+			std::cerr << psl::to_string8_t("the include" + include.first + " is not present in the cache.\n");
 			continue;
 		}
 		if(find(it->second, name, type, out)) return true;
@@ -773,7 +773,7 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 			auto it = m_Cache.find(inc.first);
 			if(it == std::end(m_Cache))
 			{
-				psl::cerr << psl::to_pstring("the include" + inc.first + " is not present in the cache.\n");
+				std::cerr << psl::to_string8_t("the include" + inc.first + " is not present in the cache.\n");
 				continue;
 			}
 			auto sub_res{construct(it->second, includes)};
@@ -818,7 +818,7 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 
 	if(entry_n == psl::string::npos)
 	{
-		psl::cerr << psl::to_pstring("could not find the entry method '" + entry + "'\n");
+		std::cerr << psl::to_string8_t("could not find the entry method '" + entry + "'\n");
 		return false;
 	}
 
@@ -830,7 +830,7 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 		{
 			if(!find(fdata, fdata.using_in_type, block_type::interface_t, &attr))
 			{
-				psl::cerr << psl::to_pstring("could not find the shader attribute '" + fdata.using_in_type + "'\n");
+				std::cerr << psl::to_string8_t("could not find the shader attribute '" + fdata.using_in_type + "'\n");
 				return false;
 			}
 			else
@@ -858,7 +858,7 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 		parsed_scope iface;
 		if(!find(fdata, fdata.using_out_type, block_type::interface_t, &iface))
 		{
-			psl::cerr << psl::to_pstring("could not find the shader attribute '" + fdata.using_out_type + "'\n");
+			std::cerr << psl::to_string8_t("could not find the shader attribute '" + fdata.using_out_type + "'\n");
 			return false;
 		}
 		out.out = (iface);
@@ -879,7 +879,7 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 		parsed_scope descr;
 		if(!find(fdata, fdata.using_descr_type, block_type::descriptor_t, &descr))
 		{
-			psl::cerr << psl::to_pstring("could not find the shader attribute '" + fdata.using_descr_type + "'\n");
+			std::cerr << psl::to_string8_t("could not find the shader attribute '" + fdata.using_descr_type + "'\n");
 			return false;
 		}
 		out.descriptor = (descr);
@@ -957,7 +957,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 	}
 	catch(std::exception e)
 	{
-		psl::cerr << psl::to_pstring("exception happened during caching! \n" + psl::string8_t(e.what()) + "\n");
+		std::cerr << psl::to_string8_t("exception happened during caching! \n" + psl::string8_t(e.what()) + "\n");
 	}
 
 
@@ -977,7 +977,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 		}
 		catch(std::exception e)
 		{
-			psl::cerr << psl::to_pstring("exception happened during constructing! \n" + psl::string8_t(e.what()) +
+			std::cerr << psl::to_string8_t("exception happened during constructing! \n" + psl::string8_t(e.what()) +
 										 "\n");
 		}
 
@@ -1071,7 +1071,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 			if(!find(cache_data, cache_data.using_descr_type + ("::") + element.type, block_type::inlined_t,
 					 &glsl_struct))
 			{
-				psl::cerr << psl::to_pstring("could not find the struct type '" + element.type + "'\n");
+				std::cerr << psl::to_string8_t("could not find the struct type '" + element.type + "'\n");
 				goto end;
 			}
 
@@ -1088,7 +1088,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 						parsed_scope true_struct;
 						if(!find(cache_data, sub_element.type, block_type::struct_t, &true_struct))
 						{
-							psl::cerr << psl::to_pstring("could not find the struct type '" + element.type + "'\n");
+							std::cerr << psl::to_string8_t("could not find the struct type '" + element.type + "'\n");
 							goto end;
 						}
 						for(const auto& true_sub_element : true_struct.elements)
@@ -1097,7 +1097,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 							format_it				= m_TypeToFormat.find(true_sub_element.type);
 							if(format_it == std::end(m_TypeToFormat))
 							{
-								psl::cerr << psl::to_pstring("could not deduce the vk::Format for the type '" +
+								std::cerr << psl::to_string8_t("could not deduce the vk::Format for the type '" +
 															 sub_element.type + "'\n");
 								goto end;
 							}
@@ -1106,7 +1106,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 							msi_element.offset(offset);
 							if(format_it == std::end(m_TypeToFormat))
 							{
-								psl::cerr << psl::to_pstring("could not deduce the vk::Format for the type '" +
+								std::cerr << psl::to_string8_t("could not deduce the vk::Format for the type '" +
 															 true_sub_element.type + "'\n");
 								goto end;
 							}
@@ -1137,7 +1137,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 						msi_element.offset(offset);
 						if(format_it == std::end(m_TypeToFormat))
 						{
-							psl::cerr << psl::to_pstring("could not deduce the vk::Format for the type '" +
+							std::cerr << psl::to_string8_t("could not deduce the vk::Format for the type '" +
 														 sub_element.type + "'\n");
 							goto end;
 						}

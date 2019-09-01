@@ -1,5 +1,5 @@
 ﻿#pragma once
-#include "cli_pack.h"
+#include "cli/value.h"
 
 namespace assembler::generators
 {
@@ -15,13 +15,13 @@ namespace assembler::generators
 		models& operator=(models&&) = delete;
 
 
-		cli::parameter_pack& pack()
+		psl::cli::pack& pack()
 		{
 			return m_Pack;
 		}
 	private:
-		void on_invoke(cli::parameter_pack& pack);
+		void on_invoke(psl::cli::pack& pack);
 
-		cli::parameter_pack m_Pack;
+		psl::cli::pack m_Pack;
 	};
 }

@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
-from paradigm.build import *
+from paradigm.tools import build
+import os
 import subprocess
 
 class Assembler(object):
@@ -12,17 +13,17 @@ class Assembler(object):
         p.parse(p.initialize())
         
     def __call__(self):
-        p = Paradigm()
+        p = build.Paradigm()
         parser = self.initialize(p)
-        args, remaining_argv = p.parse(parser)
+        args = p.parse(parser)
         
         generate_cmd = p.generate_command(args)
         #generate_cmd = generate_cmd + [ "-DPE_ASSIMP_PATH="+ args.assimp_path]
         build_cmd=""
-        if(args.verbose):
+        if(args.build):
             build_cmd = p.build_command(args)
         
-        p.build(args.project_dir, generate_cmd, build_cmd)
+        p.build(False, args.project_dir, generate_cmd, build_cmd)
         
 def main():
     assembler = Assembler()

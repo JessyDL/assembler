@@ -1,10 +1,4 @@
 ﻿#pragma once
-//#include "cli_pack.h"
-//#include "bash_terminal.h"
-//#include "bash_utils.h"
-#define NO_MIN_MAX
-#undef MIN
-#undef MAX
 #include "psl/string_utils.h"
 #include "cli/value.h"
 #include "psl/terminal_utils.h"

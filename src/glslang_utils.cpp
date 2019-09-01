@@ -2,6 +2,7 @@
 #include "glslang_utils.h"
 #include <stdlib.h>
 #include "psl/platform_utils.h"
+#include <iostream>
 
 using namespace tools;
 
@@ -13,7 +14,7 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 	auto input = compiler + "tempfile";
 	if(!utility::platform::file::write(input, source))
 	{
-		psl::cerr << "ERROR: could not write the temporary shader file.\n";
+		std::cerr << "ERROR: could not write the temporary shader file.\n";
 		return false;
 	}
 	while(!utility::platform::file::read(input))
@@ -25,7 +26,7 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 
 	if(!utility::platform::file::exists(full_path))
 	{
-		psl::cerr << "ERROR: missing 'glslangValidator'\n";
+		std::cerr << "ERROR: missing 'glslangValidator'\n";
 		utility::platform::file::erase(input);
 		return false;
 	}
@@ -38,7 +39,7 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 		utility::platform::file::erase(input);
 		return false;
 	}
-	psl::cout << psl::to_pstring("outputted the spv binary file at '" + ofile_spirv + "'\n");
+	std::cout << psl::to_string8_t("outputted the spv binary file at '" + ofile_spirv + "'\n");
 	utility::platform::file::erase(input);
 
 	while(!utility::platform::file::read(ofile_spirv))
@@ -49,9 +50,8 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 	if(optimize)
 	{
 		command = ("spirv-opt.exe -O \"") + ofile_spirv + ("\" -o \"") + ofile_spirv + ("\"");
-		if(std::system(command.c_str()) != 0)
-			return false;
-		psl::cout << psl::to_pstring("optimized the spv binary file at '" + ofile_spirv + "'\n");
+		if(std::system(command.c_str()) != 0) return false;
+		std::cout << psl::to_string8_t("optimized the spv binary file at '" + ofile_spirv + "'\n");
 	}
 
 	if(gles_version)
@@ -69,7 +69,7 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 			std::this_thread::sleep_for(std::chrono::milliseconds(150));
 		}
 
-		psl::cout << psl::to_pstring("outputted the gles shader file at '" + ofile_gles + "'\n");
+		std::cout << psl::to_string8_t("outputted the gles shader file at '" + ofile_gles + "'\n");
 	}
 	return true;
 }

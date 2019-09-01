@@ -14,6 +14,8 @@
 #include <fcntl.h>
 #include "cli/value.h"
 #include "generators/shader.h"
+#include "generators/models.h"
+#include "generators/meta.h"
 
 using psl::cli::pack;
 using psl::cli::value;
@@ -110,7 +112,7 @@ int main(int argc, char* argv[])
 	// psl::string x2 = _T("Árvíztűrő tükörfúrógép");
 	// psl::string x3 = _T("кошка 日本国 أَبْجَدِيَّة عَرَبِيَّة‎中文");
 	// psl::string x4 = _T("你爱我");
-	_setmode(_fileno(stdout), _O_U16TEXT);
+	//_setmode(_fileno(stdout), _O_U16TEXT);
 
 
 	// psl::cout << x2 << _T(" ") << x3 << " " << x4 << std::endl;
@@ -121,12 +123,13 @@ int main(int argc, char* argv[])
 			  << std::endl;
 
 	assembler::generators::shader shader_gen{};
+	assembler::generators::models model_gen{};
+	assembler::generators::meta meta_gen{};
 
-	psl::cli::pack model_pack{value<psl::string>{"input", "input file", {"input", "i"}, "", false},
-							  value<psl::string>{"output", "output file", {"output", "o"}}};
 	psl::cli::pack generator_pack{
 		value<pack>{"shader", "glsl to spir-v compiler", {"shader", "s"}, std::move(shader_gen.pack())},
-		value<pack>{"model", "model file importer", {"model", "m"}, model_pack}};
+		value<pack>{"model", "model importer", {"models", "m"}, std::move(model_gen.pack())},
+		value<pack>{"library", "meta library and file generator", {"meta"}, std::move(meta_gen.pack())}};
 
 	psl::cli::pack root{value<bool>{"exit", "quits the application", {"exit", "quit", "q"}, false},
 						value<pack>{"generator", "generator for various data files", {"generate", "g"}, generator_pack}

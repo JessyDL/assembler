@@ -2,5 +2,6 @@ SET(INC
 inc/cli/value.h
 inc/generators/shader.h
 inc/generators/models.h
+inc/generators/meta.h
 inc/glslang_utils.h
 )

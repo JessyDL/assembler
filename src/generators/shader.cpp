@@ -6,6 +6,7 @@
 #include "glslang_utils.h"
 #include "gfx/types.h"
 #include <iostream>
+#include "utf8.h"
 // todo we should figure out the bindings dynamically instead of having them written into the files, and then
 // potentially safeguard the user from accidentally merging shaders together that do not work together
 
@@ -539,8 +540,8 @@ bool shader::parse_includes(file_data& data)
 			psl::string_view current_view{data.content.data(), endline_n};
 			auto line_number = utility::string::count(current_view, ("\n"));
 			utility::terminal::set_color(utility::terminal::color::RED);
-			psl::cerr << ("ERROR: could not deduce the input file's path.\n");
-			psl::cerr << ("\tthe include's opening directive was not found, are you missing a \" or ' ?\n");
+			std::cerr << ("ERROR: could not deduce the input file's path.\n");
+			std::cerr << ("\tthe include's opening directive was not found, are you missing a \" or ' ?\n");
 			std::cerr << psl::to_string8_t("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
 										 "\n");
 			utility::terminal::set_color(utility::terminal::color::WHITE);
@@ -556,8 +557,8 @@ bool shader::parse_includes(file_data& data)
 			psl::string_view current_view{data.content.data(), endline_n};
 			auto line_number = utility::string::count(current_view, ("\n"));
 			utility::terminal::set_color(utility::terminal::color::RED);
-			psl::cerr << ("ERROR: could not deduce the input file's path.\n");
-			psl::cerr
+			std::cerr << ("ERROR: could not deduce the input file's path.\n");
+			std::cerr
 				<< ("\tthe include directive was opened, but not closed, please add a \" or ' at the end of the "
 					"line.\n");
 			std::cerr << psl::to_string8_t("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
@@ -581,7 +582,7 @@ bool shader::parse_includes(file_data& data)
 			psl::string_view current_view{data.content.data(), endline_n};
 			auto line_number = utility::string::count(current_view, ("\n"));
 			utility::terminal::set_color(utility::terminal::color::RED);
-			psl::cerr << ("ERROR: include file not found.\n");
+			std::cerr << ("ERROR: include file not found.\n");
 			std::cerr << psl::to_string8_t("\tit was defined as '" + include_def + "' and transformed into '" +
 										 include_path + "'\n");
 			std::cerr << psl::to_string8_t("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
@@ -610,7 +611,7 @@ bool shader::parse_using(file_data& data, psl::string name, psl::string& type_ou
 		auto divider_n = data.content.find((":"), using_n);
 		if(divider_n > endl_n)
 		{
-			psl::cerr << ("ERROR: malformed #using block.'\n");
+			std::cerr << ("ERROR: malformed #using block.'\n");
 			std::cerr << psl::to_string8_t("\tthe block for '#using " + name + "' did not define a ':'.\n");
 			std::cerr << psl::to_string8_t("\tin file '" + data.filename + "\n");
 			return false;
@@ -659,8 +660,8 @@ bool shader::cache_file(const psl::string& file)
 	{
 		if(m_Verbose)
 		{
-			psl::cout << psl::to_pstring(file + " was found in the cache\n");
-			psl::cout << ("\tchecking its dependencies..\n");
+			std::cout << psl::to_string8_t(file + " was found in the cache\n");
+			std::cout << ("\tchecking its dependencies..\n");
 		}
 		for(const auto& include : it->second.includes)
 		{
@@ -686,7 +687,7 @@ bool shader::cache_file(const psl::string& file)
 		}
 		else
 		{
-			if(m_Verbose) psl::cout << psl::to_pstring(file + " is being loaded into the cache\n");
+			if(m_Verbose) std::cout << psl::to_string8_t(file + " is being loaded into the cache\n");
 			file_data fdata;
 			fdata.content		= std::move(res.value());
 			fdata.last_modified = std::filesystem::last_write_time(file).time_since_epoch().count();
@@ -895,7 +896,7 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 			/*parsed_scope glsl_struct;
 			if(!find(fdata, fdata.using_descr_type + ("::") + a.type, block_type::struct_t, &glsl_struct))
 			{
-				psl::cerr << ("could not find the struct type '") << a.type << ("'\n");
+				std::cerr << ("could not find the struct type '") << a.type << ("'\n");
 				return false;
 			}
 */
@@ -950,7 +951,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 	{
 		if(!cache_file(ifile))
 		{
-			psl::cerr
+			std::cerr
 				<< ("something went wrong when loading the file in the cache, please consult the output to see why");
 			goto end;
 		}
@@ -969,7 +970,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 		{
 			if(!construct(cache_data, shader))
 			{
-				psl::cerr
+				std::cerr
 					<< ("something went wrong when loading the file in the cache, please consult the output to see "
 						"why");
 				goto end;
@@ -984,7 +985,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 		if(compiled_glsl)
 		{
 			utility::platform::file::write(ofile + ".generated", shader.content);
-			psl::cout << psl::to_pstring("outputted the generated glsl file at '" + ofile + ".generated'\n");
+			std::cout << psl::to_string8_t("outputted the generated glsl file at '" + ofile + ".generated'\n");
 			goto end;
 		}
 
@@ -1207,7 +1208,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 	}
 
 end:
-	if(m_Verbose) psl::cout << ("generating took ") << timer.elapsed().count() << ("ns") << std::endl;
+	if(m_Verbose) std::cout << ("generating took ") << timer.elapsed().count() << ("ns") << std::endl;
 }
 void shader::on_generate(psl::cli::pack& pack)
 {

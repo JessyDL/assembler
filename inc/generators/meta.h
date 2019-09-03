@@ -5,6 +5,7 @@
 #include "psl/terminal_utils.h"
 #include "meta/texture.h"
 #include "meta/shader.h"
+#include "utils.h"
 
 namespace assembler::generators
 {
@@ -18,29 +19,15 @@ namespace assembler::generators
 	  public:
 		meta()
 		{
-			auto library =
-				cli_pack{std::bind(&assembler::generators::meta::on_library_generate, this, std::placeholders::_1),
-						 cli_value<psl::string>{"directory", "location of the library", {"directory", "d"}, "", false},
-						 cli_value<psl::string>{"name", "the name of the library", {"name", "n"}, "resources.metalib"},
-						 cli_value<psl::string>{"resource",
-												"data folder that is the root to generate the library from",
-												{"resource", "r"},
-												"",
-												false},
-						 cli_value<bool>{"clean",
-										 "cleanup dangling .meta files that no longer have a corresponding file, and "
-										 "dangling library entries",
-										 {"clean"},
-										 false},
-						 cli_value<bool>{"absolute",
-										 "makes the entries be stored as absolute paths instead of relative ones",
-										 {"absolute"},
-										 false}};
+		}
 
-			auto file = cli_pack{
+		cli_pack meta_pack()
+		{
+			return cli_pack{
 				std::bind(&assembler::generators::meta::on_meta_generate, this, std::placeholders::_1),
 				cli_value<psl::string>{
-					"source", "target file or folder to generate meta for", {"source", "s"}, "", false},
+					"input", "target file or folder to generate meta for", {"input", "i"}, "", false},
+				cli_value<psl::string>{"output", "target output", {"output", "o"}, "*."+psl::meta::META_EXTENSION },
 				cli_value<psl::string>{"type", "type of meta data to generate", {"type", "t"}, "META"},
 				cli_value<bool>{"recursive",
 								"when true, and the source path is a directory, it will recursively go through it",
@@ -54,15 +41,28 @@ namespace assembler::generators
 					false}
 
 			};
-
-
-			m_Pack =
-				cli_pack{cli_value<cli_pack>{"library", "library generator", {"library", "l"}, std::move(library)},
-						 cli_value<cli_pack>{"meta", "meta creator", {"meta", "m"}, std::move(file)}};
 		}
-
-		cli_pack& pack() { return m_Pack; }
-
+		cli_pack library_pack()
+		{
+			return cli_pack{
+				std::bind(&assembler::generators::meta::on_library_generate, this, std::placeholders::_1),
+				cli_value<psl::string>{"directory", "location of the library", {"directory", "d"}, "", false},
+				cli_value<psl::string>{"name", "the name of the library", {"name", "n"}, "resources.metalib"},
+				cli_value<psl::string>{"resource",
+									   "data folder that is the root to generate the library from",
+									   {"resource", "r"},
+									   "",
+									   false},
+				cli_value<bool>{"clean",
+								"cleanup dangling .meta files that no longer have a corresponding file, and "
+								"dangling library entries",
+								{"clean"},
+								false},
+				cli_value<bool>{"absolute",
+								"makes the entries be stored as absolute paths instead of relative ones",
+								{"absolute"},
+								false}};
+		}
 	  private:
 		void on_library_generate(cli_pack& pack)
 		{
@@ -199,9 +199,10 @@ namespace assembler::generators
 
 		void on_meta_generate(cli_pack& pack)
 		{
-			// -g -l -m -s "c:\\Projects\Paradigm\data\should_see_this\New Text Document.txt" -t "TEXTURE_META"
-			// -g -l -m -s D:\Projects\Paradigm\data\textures -r -t "TEXTURE_META"
-			auto source_path	  = pack["source"]->as<psl::string>().get();
+			// -g -m -s "c:\\Projects\Paradigm\data\should_see_this\New Text Document.txt" -t "TEXTURE_META"
+			// -g -m -s D:\Projects\Paradigm\data\textures -r -t "TEXTURE_META"
+			auto input_path	  = assembler::pathstring{pack["input"]->as<psl::string>().get()};
+			auto output_path	  = assembler::pathstring{pack["output"]->as<psl::string>().get()};
 			auto meta_type		  = pack["type"]->as<psl::string>().get();
 			auto recursive_search = pack["recursive"]->as<bool>().get();
 			auto force_regenerate = pack["force"]->as<bool>().get();
@@ -209,7 +210,7 @@ namespace assembler::generators
 
 			if(update) force_regenerate = update;
 
-			if(source_path.size() == 0)
+			if(input_path->size() == 0)
 			{
 				utility::terminal::set_color(utility::terminal::color::RED);
 				std::cerr << "error: the input source path did not contain any characters." << std::endl;
@@ -217,46 +218,25 @@ namespace assembler::generators
 				return;
 			}
 
-			source_path = utility::platform::file::to_generic(source_path);
-			std::vector<psl::string> all_files;
-
-			if(source_path[source_path.size() - 1] == '*')
-			{
-				source_path = source_path.substr(0, source_path.find_last_not_of('*'));
-			}
-
 			const psl::string meta_extension = "." + psl::meta::META_EXTENSION;
+			auto files  = assembler::get_files(input_path, output_path);
+			
 
-			if(utility::platform::directory::is_directory(source_path))
-			{
-				all_files = utility::platform::directory::all_files(source_path, recursive_search);
-				// remove all those with meta extensions
-				all_files.erase(std::remove_if(std::begin(all_files), std::end(all_files),
-											   [meta_extension](const psl::string& file) {
-												   return (file.size() < meta_extension.size())
-															  ? false
-															  : file.substr(file.size() - meta_extension.size()) ==
-																	meta_extension;
-											   }),
-								std::end(all_files));
-			}
-			else
-			{
-				all_files.emplace_back(source_path);
-			}
 
 			if(!force_regenerate)
 			{
 				// remove all those with existing meta files
-				all_files.erase(std::remove_if(std::begin(all_files), std::end(all_files),
-											   [meta_extension](const psl::string& file) {
-												   return utility::platform::file::exists(file + meta_extension);
+				files.erase(std::remove_if(std::begin(files), std::end(files),
+											   [meta_extension](const auto& file_pair) {
+											   return utility::platform::file::exists(file_pair.second);
 											   }),
-								std::end(all_files));
+							std::end(files));
 			}
 
-			for(const auto& file : all_files)
+			for(const auto& [input, output] : files)
 			{
+				if(psl::string_view dir {output->data(), output->rfind('/')};!utility::platform::directory::exists(dir))
+					utility::platform::directory::create(dir);
 				auto id = utility::crc64(psl::to_string8_t(meta_type));
 				if(auto it = psl::serialization::accessor::polymorphic_data().find(id);
 				   it != psl::serialization::accessor::polymorphic_data().end())
@@ -266,10 +246,10 @@ namespace assembler::generators
 					psl::UID uid = psl::UID::generate();
 					psl::serialization::serializer s;
 
-					if(utility::platform::file::exists(file + meta_extension) && update)
+					if(utility::platform::file::exists(output.platform()) && update)
 					{
 						psl::meta::file* original = nullptr;
-						s.deserialize<psl::serialization::decode_from_format>(original, file + meta_extension);
+						s.deserialize<psl::serialization::decode_from_format>(original, output.platform());
 						uid = original->ID();
 					}
 
@@ -281,13 +261,7 @@ namespace assembler::generators
 					cont.remove(node.get());
 					cont.add_value(metaNode.get(), "UID", utility::to_string(uid));
 
-					auto unix_filepath = utility::platform::file::to_unix(file);
-					auto unix_dir	  = unix_filepath.substr(0, unix_filepath.find_last_of(('/')));
-					auto filename	  = unix_filepath.substr(unix_filepath.find_last_of(('/')) + 1);
-
-					utility::platform::file::write(unix_dir + "/" + filename + (".") +
-													   psl::from_string8_t(psl::meta::META_EXTENSION),
-												   psl::from_string8_t(cont.to_string()));
+					utility::platform::file::write(output, psl::from_string8_t(cont.to_string()));
 				}
 				else
 				{
@@ -303,7 +277,6 @@ namespace assembler::generators
 				}
 			}
 		}
-		cli_pack m_Pack;
 	};
 } // namespace assembler::generators
 // const uint64_t core::meta::texture::polymorphic_identity{serialization::register_polymorphic<core::meta::texture>()};

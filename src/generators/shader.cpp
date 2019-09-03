@@ -7,6 +7,7 @@
 #include "gfx/types.h"
 #include <iostream>
 #include "utf8.h"
+#include "utils.h"
 // todo we should figure out the bindings dynamically instead of having them written into the files, and then
 // potentially safeguard the user from accidentally merging shaders together that do not work together
 
@@ -28,7 +29,7 @@ bool write_error(const shader::file_data& data, size_t current_offset, psl::stri
 	utility::terminal::set_color(utility::terminal::color::RED);
 	std::cerr << psl::to_string8_t("ERROR: " + message + "\n");
 	std::cerr << psl::to_string8_t("\tat line '" + psl::from_string8_t(utility::to_string(line_number)) + "' of '" +
-								 data.filename + "'\n");
+								   data.filename + "'\n");
 	utility::terminal::set_color(utility::terminal::color::WHITE);
 	return false;
 }
@@ -543,7 +544,7 @@ bool shader::parse_includes(file_data& data)
 			std::cerr << ("ERROR: could not deduce the input file's path.\n");
 			std::cerr << ("\tthe include's opening directive was not found, are you missing a \" or ' ?\n");
 			std::cerr << psl::to_string8_t("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
-										 "\n");
+										   "\n");
 			utility::terminal::set_color(utility::terminal::color::WHITE);
 			return false;
 		}
@@ -562,7 +563,7 @@ bool shader::parse_includes(file_data& data)
 				<< ("\tthe include directive was opened, but not closed, please add a \" or ' at the end of the "
 					"line.\n");
 			std::cerr << psl::to_string8_t("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
-										 "\n");
+										   "\n");
 			utility::terminal::set_color(utility::terminal::color::WHITE);
 			return false;
 		}
@@ -584,9 +585,9 @@ bool shader::parse_includes(file_data& data)
 			utility::terminal::set_color(utility::terminal::color::RED);
 			std::cerr << ("ERROR: include file not found.\n");
 			std::cerr << psl::to_string8_t("\tit was defined as '" + include_def + "' and transformed into '" +
-										 include_path + "'\n");
+										   include_path + "'\n");
 			std::cerr << psl::to_string8_t("\tat line '" + utility::to_string(line_number) + "' of '" + data.filename +
-										 "\n");
+										   "\n");
 			utility::terminal::set_color(utility::terminal::color::WHITE);
 			return false;
 		}
@@ -889,9 +890,8 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 		{
 			inject += ("layout (binding = ") + psl::from_string8_t(utility::to_string(a.location.value())) + (") ") +
 					  a.bind_qualifier.value_or(("")) + (" ") + a.buffer.value_or(a.type) + (" ") +
-					  ((!a.inlined_scope.has_value())
-						   ? a.name + (";\n")
-						   : ("\n") + a.inlined_scope.value() + a.name + (";\n"));
+					  ((!a.inlined_scope.has_value()) ? a.name + (";\n")
+													  : ("\n") + a.inlined_scope.value() + a.name + (";\n"));
 
 			/*parsed_scope glsl_struct;
 			if(!find(fdata, fdata.using_descr_type + ("::") + a.type, block_type::struct_t, &glsl_struct))
@@ -909,17 +909,14 @@ bool shader::construct(const file_data& fdata, result_shader& out, psl::string_v
 
 	return true;
 }
-void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, bool optimize,
+bool shader::generate(assembler::pathstring ifile, assembler::pathstring ofile, bool compiled_glsl, bool optimize,
 					  psl::array<psl::string> types)
 {
-	ifile = utility::platform::file::to_platform(ifile);
-	ofile = utility::platform::file::to_platform(ofile);
-
-	auto directory = ofile.substr(0, ofile.find_last_of("/\\"));
+	auto directory = utility::platform::file::to_platform(ofile->substr(0, ofile->find_last_of("/")));
 	if(!utility::platform::directory::exists(directory)) utility::platform::directory::create(directory, true);
 
-	auto index				  = ifile.find_last_of(("."));
-	auto extension			  = ifile.substr(index + 1);
+	auto index				  = ifile->find_last_of(("."));
+	auto extension			  = ifile->substr(index + 1);
 	tools::glslang::type type = tools::glslang::type::vert;
 	if(extension == ("frag"))
 		type = tools::glslang::type::frag;
@@ -932,7 +929,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 	else if(extension == ("tese"))
 		type = tools::glslang::type::tese;
 
-	auto ofile_meta = ofile + "-" + tools::glslang::type_str[(uint8_t)type] + "." + ::meta::META_EXTENSION;
+	auto ofile_meta = ofile.platform() + "-" + tools::glslang::type_str[(uint8_t)type] + "." + ::meta::META_EXTENSION;
 
 
 	UID meta_UID = UID::generate();
@@ -949,7 +946,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 
 	try
 	{
-		if(!cache_file(ifile))
+		if(!cache_file(ifile.platform()))
 		{
 			std::cerr
 				<< ("something went wrong when loading the file in the cache, please consult the output to see why");
@@ -965,7 +962,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 	{
 		// parsing the file
 		result_shader shader;
-		auto& cache_data = m_Cache[ifile];
+		auto& cache_data = m_Cache[ifile.platform()];
 		try
 		{
 			if(!construct(cache_data, shader))
@@ -979,13 +976,14 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 		catch(std::exception e)
 		{
 			std::cerr << psl::to_string8_t("exception happened during constructing! \n" + psl::string8_t(e.what()) +
-										 "\n");
+										   "\n");
 		}
 
 		if(compiled_glsl)
 		{
-			utility::platform::file::write(ofile + ".generated", shader.content);
-			std::cout << psl::to_string8_t("outputted the generated glsl file at '" + ofile + ".generated'\n");
+			utility::platform::file::write(ofile.platform() + ".generated", shader.content);
+			std::cout << psl::to_string8_t("outputted the generated glsl file at '" + ofile.platform() +
+										   ".generated'\n");
 			goto end;
 		}
 
@@ -993,8 +991,8 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 		std::optional<size_t> gles_version;
 		if(std::find(std::begin(types), std::end(types), "gles") != std::end(types)) gles_version = 300;
 
-		if(tools::glslang::compile(utility::application::path::get_path(), shader.content, ofile, type, optimize,
-								   gles_version))
+		if(tools::glslang::compile(utility::application::path::get_path(), shader.content, ofile.platform(), type,
+								   optimize, gles_version))
 		{
 		}
 		else
@@ -1099,7 +1097,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 							if(format_it == std::end(m_TypeToFormat))
 							{
 								std::cerr << psl::to_string8_t("could not deduce the vk::Format for the type '" +
-															 sub_element.type + "'\n");
+															   sub_element.type + "'\n");
 								goto end;
 							}
 
@@ -1108,7 +1106,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 							if(format_it == std::end(m_TypeToFormat))
 							{
 								std::cerr << psl::to_string8_t("could not deduce the vk::Format for the type '" +
-															 true_sub_element.type + "'\n");
+															   true_sub_element.type + "'\n");
 								goto end;
 							}
 							msi_element.format((core::gfx::format)format_it->second);
@@ -1139,7 +1137,7 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 						if(format_it == std::end(m_TypeToFormat))
 						{
 							std::cerr << psl::to_string8_t("could not deduce the vk::Format for the type '" +
-														 sub_element.type + "'\n");
+														   sub_element.type + "'\n");
 							goto end;
 						}
 						msi_element.format((core::gfx::format)format_it->second);
@@ -1207,61 +1205,42 @@ void shader::generate(psl::string ifile, psl::string ofile, bool compiled_glsl, 
 		utility::platform::file::write(ofile_meta, psl::from_string8_t(container.to_string()));
 	}
 
+	return true;
 end:
 	if(m_Verbose) std::cout << ("generating took ") << timer.elapsed().count() << ("ns") << std::endl;
+	return false;
 }
 void shader::on_generate(psl::cli::pack& pack)
 {
-	// -g -s -i "C:\Projects\data_old\Shaders\Surface\default.vert" -o
-	// "C:\Projects\data_old\Shaders\test_output\default.spv" -O -v -g -s -i
-	// "C:\Projects\data_old\Shaders\Surface\default.vert" -o
+	// -g -s -i "C:\Projects\github\example_data\source\shaders\debug/*" -o
+	// "C:\Projects\github\example_data\data\shaders\debug/" -O "C:\Projects\data_old\Shaders\test_output\default.spv"
+	// -O -v -g -s -i "C:\Projects\data_old\Shaders\Surface\default.vert" -o
 	// "C:\Projects\data_old\Shaders\test_output\default-glsl.vert" --glsl -v
 
-	auto ifile		   = pack["input"]->as<psl::string>().get();
-	auto ofile		   = pack["output"]->as<psl::string>().get();
+	auto ifile		   = assembler::pathstring{pack["input"]->as<psl::string>().get()};
+	auto ofile		   = assembler::pathstring{pack["output"]->as<psl::string>().get()};
 	auto overwrite	 = pack["overwrite"]->as<bool>().get();
 	auto compiled_glsl = pack["compiled glsl"]->as<bool>().get();
 	auto optimize	  = pack["optimize"]->as<bool>().get();
 	m_Verbose		   = pack["verbose"]->as<bool>().get();
 	auto types		   = pack["types"]->as<std::vector<psl::string>>().get();
 
-	if(ifile[ifile.size() - 1] == '*')
+	auto files = assembler::get_files(ifile, ofile);
+
+	size_t success = 0;
+	for(const auto& file : files)
 	{
-		auto directory = ifile.erase(ifile.size() - 1);
-		if(!utility::platform::directory::is_directory(directory))
+		psl::string_view output = file.second;
+		if(ofile->empty())
 		{
-			directory.erase(directory.find_last_of('/') + 1);
-		}
-		auto ifiles = utility::platform::directory::all_files(directory, true);
-		if(ofile.empty())
-		{
-			ofile = directory;
-		}
-
-		if(ofile[ofile.size() - 1] == '/' || ofile[ofile.size() - 1] == '\\') ofile.erase(ofile.size() - 1);
-
-		for(const auto& input : ifiles)
-		{
-			auto output = ofile + "/" + input.substr(directory.size());
 			if(size_t last_dot = output.find_last_of('.'); last_dot != std::string::npos)
 			{
-				output.erase(last_dot);
+				output = psl::string_view{file.second.data().data(), last_dot};
 			}
-			generate(input, output, compiled_glsl, optimize, types);
 		}
+
+		success += generate(file.first, output, compiled_glsl, optimize, types) ? 1 : 0;
 	}
-	else
-	{
-		if(ofile.empty())
-		{
-			ofile			= ifile;
-			size_t last_dot = ofile.find_last_of('.');
-			ofile[last_dot] = '-';
-		}
-		else if(size_t last_dot = ofile.find_last_of('.'); last_dot != std::string::npos)
-		{
-			ofile.erase(last_dot);
-		}
-		generate(ifile, ofile, compiled_glsl, optimize, types);
-	}
+
+	std::cout << "generated " << success << " shaders\n\n";
 }

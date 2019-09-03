@@ -7,11 +7,12 @@
 #include "psl/ustring.h"
 #include <array>
 
+#ifdef WIN32
 #include <windows.h>
-#include <stack>
-
 #include <io.h>
 #include <fcntl.h>
+#endif
+
 #include "cli/value.h"
 #include "generators/shader.h"
 #include "generators/models.h"
@@ -20,6 +21,7 @@
 using psl::cli::pack;
 using psl::cli::value;
 
+#ifdef WIN32
 BOOL CtrlHandler(DWORD fdwCtrlType)
 {
 	switch(fdwCtrlType)
@@ -43,6 +45,7 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 	default: return FALSE;
 	}
 }
+#endif
 
 static psl::string_view get_input()
 {
@@ -50,6 +53,7 @@ static psl::string_view get_input()
 	std::memset(input.data(), ('\0'), sizeof(psl::platform::char_t) * input.size());
 	std::cin.getline(input.data(), input.size() - 1);
 
+	return {input.data(), psl::strlen(input.data())};
 #if WIN32
 	static psl::string override;
 	override = psl::to_string8_t(input);
@@ -59,41 +63,13 @@ static psl::string_view get_input()
 #endif
 }
 
-
-template <typename T>
-void advance_impl(std::reference_wrapper<T>& target, std::intptr_t count)
-{
-	using type = std::remove_const_t<T>;
-	// const_cast<std::reference_wrapper<type>&>(target) = *((type*)(&target.get()) + count);
-	target = *((type*)&target.get() + count);
-}
-
-template <typename... Ts>
-void advance_tuple(std::tuple<Ts...>& target, std::uintptr_t count)
-{
-	(advance_impl(std::get<Ts>(target), count), ...);
-}
-
-
 int main(int argc, char* argv[])
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
 
-	std::tuple<std::vector<int>, std::vector<float>> ta1 = {{10, -5}, {5.0f, -9.6f}};
 
-	std::tuple<std::reference_wrapper<int>, std::reference_wrapper<float>> t3{std::get<0>(ta1)[0], std::get<1>(ta1)[0]};
-	//advance_tuple(t3, 1);
-	// t3	 = std::tuple<int&, float&>(advance(std::get<0>(t3), 1), advance(std::get<1>(t3), 1));
-	//auto x = std::get<0>(t3);
-
-	std::tuple<int*, float*> t5{&std::get<0>(ta1)[0], &std::get<1>(ta1)[0]};
-
-	std::tuple<int&, float&>& t4 = *reinterpret_cast<std::tuple<int&, float&>*>(&t5);
-	std::get<0>(t4) += 5;
-	//return x;
-
-
+#ifdef WIN32
 	SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE);
 
 	// std::wstring res = L"Стоял";
@@ -109,13 +85,12 @@ int main(int argc, char* argv[])
 	wcscpy_s(cfi.FaceName, L"Consolas");
 	SetCurrentConsoleFontEx(GetStdHandle(STD_OUTPUT_HANDLE), FALSE, &cfi);
 
-	// psl::string x2 = _T("Árvíztűrő tükörfúrógép");
-	// psl::string x3 = _T("кошка 日本国 أَبْجَدِيَّة عَرَبِيَّة‎中文");
-	// psl::string x4 = _T("你爱我");
+	/*psl::string x2 = _T("Árvíztűrő tükörfúrógép");
+	psl::string x3 = _T("кошка 日本国 أَبْجَدِيَّة عَرَبِيَّة‎中文");
+	psl::string x4 = _T("你爱我");*/
 	//_setmode(_fileno(stdout), _O_U16TEXT);
-
-
-	// psl::cout << x2 << _T(" ") << x3 << " " << x4 << std::endl;
+	//_setmode(_fileno(stdout), _O_U8TEXT);
+#endif
 
 	std::cout << _T("welcome to assembler, use -h or --help to get information on the commands.\nyou can also pass ")
 				 _T("the specific command (or its chain) after --help to get more information of that specific ")
@@ -128,8 +103,9 @@ int main(int argc, char* argv[])
 
 	psl::cli::pack generator_pack{
 		value<pack>{"shader", "glsl to spir-v compiler", {"shader", "s"}, std::move(shader_gen.pack())},
-		value<pack>{"model", "model importer", {"models", "m"}, std::move(model_gen.pack())},
-		value<pack>{"library", "meta library and file generator", {"meta"}, std::move(meta_gen.pack())}};
+		value<pack>{"model", "model importer", {"models", "g"}, std::move(model_gen.pack())},
+		value<pack>{"library", "meta library generator", {"library", "l"}, meta_gen.library_pack()},
+		value<pack>{"meta", "meta file generator", {"meta", "m"}, meta_gen.meta_pack()}};
 
 	psl::cli::pack root{value<bool>{"exit", "quits the application", {"exit", "quit", "q"}, false},
 						value<pack>{"generator", "generator for various data files", {"generate", "g"}, generator_pack}

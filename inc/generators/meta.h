@@ -1,11 +1,110 @@
 ﻿#pragma once
 #include "cli/value.h"
-#include "psl/meta.h"
-#include "psl/library.h"
-#include "psl/terminal_utils.h"
-#include "meta/texture.h"
+#include "gles/conversion.h"
 #include "meta/shader.h"
+#include "meta/texture.h"
+#include "psl/array_view.h"
+#include "psl/library.h"
+#include "psl/meta.h"
+#include "psl/terminal_utils.h"
 #include "utils.h"
+#include <cstdint>
+
+namespace utility::dds
+{
+	constexpr uint32_t identifier{0x20534444};
+	struct pixelformat
+	{
+		uint32_t dwSize;
+		uint32_t dwFlags;
+		uint32_t dwFourCC;
+		uint32_t dwRGBBitCount;
+		uint32_t dwRBitMask;
+		uint32_t dwGBitMask;
+		uint32_t dwBBitMask;
+		uint32_t dwABitMask;
+	};
+
+	struct header
+	{
+		uint32_t dwSize;
+		uint32_t dwFlags;
+		uint32_t dwHeight;
+		uint32_t dwWidth;
+		uint32_t dwPitchOrLinearSize;
+		uint32_t dwDepth;
+		uint32_t dwMipMapCount;
+		uint32_t dwReserved1[11];
+		pixelformat ddspf;
+		uint32_t dwCaps;
+		uint32_t dwCaps2;
+		uint32_t dwCaps3;
+		uint32_t dwCaps4;
+		uint32_t dwReserved2;
+	};
+
+	bool is_dds(psl::array_view<std::byte> data) noexcept
+	{
+		if(data.size() > sizeof(identifier))
+		{
+			return memcmp(data.data(), (void*)&identifier, sizeof(identifier)) == 0;
+		}
+		return false;
+	}
+
+	header decode(psl::array_view<std::byte> data)
+	{
+		if(!is_dds(data)) return {0};
+		header res{};
+		data = psl::array_view<std::byte>{std::next(std::begin(data), sizeof(identifier)),
+										  std::size(data) - sizeof(identifier)};
+		memcpy(&res, data.data(), sizeof(header));
+		return res;
+	}
+}
+namespace utility::ktx
+{
+	constexpr psl::static_array<std::byte, 12> identifier{
+		std::byte{0xAB}, std::byte{0x4B}, std::byte{0x54}, std::byte{0x58}, std::byte{0x20}, std::byte{0x31},
+		std::byte{0x31}, std::byte{0xBB}, std::byte{0x0D}, std::byte{0x0A}, std::byte{0x1A}, std::byte{0x0A}};
+
+	struct header
+	{
+		uint32_t endianness;
+		uint32_t glType;
+		uint32_t glTypeSize;
+		uint32_t glFormat;
+		uint32_t glInternalFormat;
+		uint32_t glBaseInternalFormat;
+		uint32_t pixelWidth;
+		uint32_t pixelHeight;
+		uint32_t pixelDepth;
+		uint32_t numberOfArrayElements;
+		uint32_t numberOfFaces;
+		uint32_t numberOfMipmapLevels;
+		uint32_t bytesOfKeyValueData;
+	};
+
+	bool is_ktx(psl::array_view<std::byte> data) noexcept
+	{
+		if(data.size() > sizeof(identifier))
+		{
+			return memcmp(data.data(), identifier.data(), sizeof(identifier)) == 0;
+		}
+		return false;
+	}
+
+	header decode(psl::array_view<std::byte> data)
+	{
+		if(!is_ktx(data)) return {0};
+		header res{};
+		data = psl::array_view<std::byte>{std::next(std::begin(data), sizeof(identifier)),
+										  std::size(data) - sizeof(identifier)};
+		memcpy(&res, data.data(), sizeof(header));
+		return res;
+	}
+
+} // namespace core::utility::ktx
 
 namespace assembler::generators
 {
@@ -16,9 +115,54 @@ namespace assembler::generators
 
 		using cli_pack = psl::cli::pack;
 
+		struct extension
+		{
+		  public:
+			template <typename S>
+			void serialize(S& s)
+			{
+				s << meta << extensions;
+			}
+
+			static constexpr const char serialization_name[6]{"ENTRY"};
+			psl::serialization::property<psl::array<psl::string>, const_str("EXTENSIONS", 10)> extensions;
+			psl::serialization::property<psl::string, const_str("META", 4)> meta;
+		};
+		struct mapping_table
+		{
+		  public:
+			template <typename S>
+			void serialize(S& s)
+			{
+				s << mappings;
+			}
+			static constexpr const char serialization_name[6]{"TABLE"};
+
+			operator std::unordered_map<psl::string, psl::string>() const noexcept
+			{
+				std::unordered_map<psl::string, psl::string> res;
+				for(const auto& entry : mappings.value)
+				{
+					for(const auto& ext : entry.extensions.value)
+					{
+						res.emplace(ext, entry.meta.value);
+					}
+				}
+				return res;
+			}
+			psl::serialization::property<psl::array<extension>, const_str("MAPPING", 7)> mappings;
+		};
+
 	  public:
 		meta()
 		{
+			if(utility::platform::file::exists("metamapping.txt"))
+			{
+				mapping_table table;
+				psl::serialization::serializer s;
+				s.deserialize<psl::serialization::decode_from_format>(table, "metamapping.txt");
+				m_FileMaps = table;
+			}
 		}
 
 		cli_pack meta_pack()
@@ -27,8 +171,8 @@ namespace assembler::generators
 				std::bind(&assembler::generators::meta::on_meta_generate, this, std::placeholders::_1),
 				cli_value<psl::string>{
 					"input", "target file or folder to generate meta for", {"input", "i"}, "", false},
-				cli_value<psl::string>{"output", "target output", {"output", "o"}, "*."+psl::meta::META_EXTENSION },
-				cli_value<psl::string>{"type", "type of meta data to generate", {"type", "t"}, "META"},
+				cli_value<psl::string>{"output", "target output", {"output", "o"}, "*." + psl::meta::META_EXTENSION},
+				cli_value<psl::string>{"type", "type of meta data to generate", {"type", "t"}, ""},
 				cli_value<bool>{"recursive",
 								"when true, and the source path is a directory, it will recursively go through it",
 								{"recursive", "r"},
@@ -63,6 +207,7 @@ namespace assembler::generators
 								{"absolute"},
 								false}};
 		}
+
 	  private:
 		void on_library_generate(cli_pack& pack)
 		{
@@ -201,7 +346,9 @@ namespace assembler::generators
 		{
 			// -g -m -s "c:\\Projects\Paradigm\data\should_see_this\New Text Document.txt" -t "TEXTURE_META"
 			// -g -m -s D:\Projects\Paradigm\data\textures -r -t "TEXTURE_META"
-			auto input_path	  = assembler::pathstring{pack["input"]->as<psl::string>().get()};
+			// -g -m -i "C:\Projects\github\example_data\source\fonts/*" -o
+			// "C:\Projects\github\example_data\data\fonts/*.meta"
+			auto input_path		  = assembler::pathstring{pack["input"]->as<psl::string>().get()};
 			auto output_path	  = assembler::pathstring{pack["output"]->as<psl::string>().get()};
 			auto meta_type		  = pack["type"]->as<psl::string>().get();
 			auto recursive_search = pack["recursive"]->as<bool>().get();
@@ -219,24 +366,34 @@ namespace assembler::generators
 			}
 
 			const psl::string meta_extension = "." + psl::meta::META_EXTENSION;
-			auto files  = assembler::get_files(input_path, output_path);
-			
+			auto files						 = assembler::get_files(input_path, output_path);
 
 
 			if(!force_regenerate)
 			{
 				// remove all those with existing meta files
 				files.erase(std::remove_if(std::begin(files), std::end(files),
-											   [meta_extension](const auto& file_pair) {
+										   [meta_extension](const auto& file_pair) {
 											   return utility::platform::file::exists(file_pair.second);
-											   }),
+										   }),
 							std::end(files));
 			}
 
 			for(const auto& [input, output] : files)
 			{
-				if(psl::string_view dir {output->data(), output->rfind('/')};!utility::platform::directory::exists(dir))
+				if(psl::string_view dir{output->data(), output->rfind('/')}; !utility::platform::directory::exists(dir))
 					utility::platform::directory::create(dir);
+
+				auto extension = input->substr(input->rfind('.') + 1);
+
+
+				if(meta_type.empty())
+				{
+					meta_type = "META";
+					auto it   = m_FileMaps.find(extension);
+					if(it != std::end(m_FileMaps)) meta_type = it->second;
+				}
+
 				auto id = utility::crc64(psl::to_string8_t(meta_type));
 				if(auto it = psl::serialization::accessor::polymorphic_data().find(id);
 				   it != psl::serialization::accessor::polymorphic_data().end())
@@ -253,6 +410,37 @@ namespace assembler::generators
 						uid = original->ID();
 					}
 
+					switch(id)
+					{
+					case utility::crc64("TEXTURE_META"):
+					{
+
+						auto data = utility::platform::file::read(input).value();
+						auto view = psl::array_view<std::byte>((std::byte*)data.data(), data.size());
+						if(utility::ktx::is_ktx(view))
+						{
+							auto header =
+								utility::ktx::decode(psl::array_view<std::byte>((std::byte*)data.data(), data.size()));
+							core::meta::texture* texture_meta = reinterpret_cast<core::meta::texture*>(target);
+							texture_meta->width(header.pixelWidth);
+							texture_meta->height(header.pixelHeight);
+							texture_meta->depth(header.pixelDepth);
+							texture_meta->mip_levels(header.numberOfMipmapLevels);
+						}
+						else if(utility::dds::is_dds(view))
+						{
+							auto header =
+								utility::dds::decode(psl::array_view<std::byte>((std::byte*)data.data(), data.size()));
+							core::meta::texture* texture_meta = reinterpret_cast<core::meta::texture*>(target);
+							texture_meta->width(header.dwWidth);
+							texture_meta->height(header.dwHeight);
+							texture_meta->depth(header.dwDepth);
+							texture_meta->mip_levels(header.dwMipMapCount);
+						}
+					}
+					break;
+					}
+
 					psl::format::container cont;
 					s.serialize<psl::serialization::encode_to_format>(target, cont);
 
@@ -261,7 +449,10 @@ namespace assembler::generators
 					cont.remove(node.get());
 					cont.add_value(metaNode.get(), "UID", utility::to_string(uid));
 
+
 					utility::platform::file::write(output, psl::from_string8_t(cont.to_string()));
+					std::cout << "wrote a " << meta_type << " file to " << output.platform() << " from "
+							  << input.platform() << "\n";
 				}
 				else
 				{
@@ -277,6 +468,8 @@ namespace assembler::generators
 				}
 			}
 		}
+
+		std::unordered_map<psl::string, psl::string> m_FileMaps;
 	};
 } // namespace assembler::generators
 // const uint64_t core::meta::texture::polymorphic_identity{serialization::register_polymorphic<core::meta::texture>()};

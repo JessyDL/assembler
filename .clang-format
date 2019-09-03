@@ -1,6 +1,4 @@
 ---
-Language: Cpp
-Standard: Cpp11
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: true
 AlignOperands: true
@@ -46,5 +44,5 @@ SpacesInSquareBrackets: false
 IndentWidth: 4
 TabWidth: 4
 UseTab: Always
-SortIncludes: false
+SortIncludes: true
 ...

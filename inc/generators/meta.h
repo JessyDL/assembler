@@ -436,20 +436,33 @@ namespace assembler::generators
 			psl::serialization::property<psl::array<psl::string>, const_str("EXTENSIONS", 10)> extensions;
 			psl::serialization::property<psl::string, const_str("META", 4)> meta;
 		};
+		struct environment
+		{
+		  public:
+			template <typename S>
+			void serialize(S& s)
+			{
+				s << name << extensions;
+			}
+
+			static constexpr const char serialization_name[12]{"ENVIRONMENT"};
+			psl::serialization::property<psl::array<psl::string>, const_str("EXTENSIONS", 10)> extensions;
+			psl::serialization::property<psl::string, const_str("NAME", 4)> name;
+		};
 		struct mapping_table
 		{
 		  public:
 			template <typename S>
 			void serialize(S& s)
 			{
-				s << mappings;
+				s << m_Mappings << m_Environments;
 			}
 			static constexpr const char serialization_name[6]{"TABLE"};
 
-			operator std::unordered_map<psl::string, psl::string>() const noexcept
+			std::unordered_map<psl::string, psl::string> mappings() const noexcept
 			{
 				std::unordered_map<psl::string, psl::string> res;
-				for(const auto& entry : mappings.value)
+				for(const auto& entry : m_Mappings.value)
 				{
 					for(const auto& ext : entry.extensions.value)
 					{
@@ -458,7 +471,24 @@ namespace assembler::generators
 				}
 				return res;
 			}
-			psl::serialization::property<psl::array<extension>, const_str("MAPPING", 7)> mappings;
+
+			std::unordered_map<psl::string, psl::array<psl::string>> environments() const noexcept
+			{
+
+				std::unordered_map<psl::string, psl::array<psl::string>> res;
+				for(const auto& entry : m_Environments.value)
+				{
+					for(const auto& ext : entry.extensions.value)
+					{
+						res[ext].emplace_back(entry.name.value);
+					}
+				}
+				return res;
+			}
+
+		  private:
+			psl::serialization::property<psl::array<extension>, const_str("MAPPING", 7)> m_Mappings;
+			psl::serialization::property<psl::array<environment>, const_str("ENVIRONMENTS", 12)> m_Environments;
 		};
 
 	  public:
@@ -469,7 +499,8 @@ namespace assembler::generators
 				mapping_table table;
 				psl::serialization::serializer s;
 				s.deserialize<psl::serialization::decode_from_format>(table, "metamapping.txt");
-				m_FileMaps = table;
+				m_FileMaps = table.mappings();
+				m_EnvMaps  = table.environments();
 			}
 		}
 
@@ -509,22 +540,17 @@ namespace assembler::generators
 								"cleanup dangling .meta files that no longer have a corresponding file, and "
 								"dangling library entries",
 								{"clean"},
-								false},
-				cli_value<bool>{"absolute",
-								"makes the entries be stored as absolute paths instead of relative ones",
-								{"absolute"},
 								false}};
 		}
 
 	  private:
 		void on_library_generate(cli_pack& pack)
 		{
-			// -g -l -l -d "d:/Projects\Paradigm\library" -r "d:/Projects\Paradigm\data"
+			// --generate -l -d "C:\Projects\github\example_data\library" -r "C:\Projects\github\example_data\data"
 			auto lib_dir  = pack["directory"]->as<psl::string>().get();
 			auto lib_name = pack["name"]->as<psl::string>().get();
 			auto res_dir  = pack["resource"]->as<psl::string>().get();
-			auto cleanup  = pack["cleanup"]->as<bool>().get();
-			auto absolute = pack["absolute"]->as<bool>().get();
+			auto clean	= pack["clean"]->as<bool>().get();
 
 			size_t relative_position = 0u;
 
@@ -563,24 +589,22 @@ namespace assembler::generators
 			auto all_files = utility::platform::directory::all_files(res_dir, true);
 			// remove all files that don't end in .meta
 			psl::string meta_ext = "." + psl::meta::META_EXTENSION;
-			all_files.erase(std::remove_if(std::begin(all_files), std::end(all_files),
-										   [&meta_ext](const psl::string_view& file) {
-											   return (file.size() >= meta_ext.size())
-														  ? file.substr(file.size() - meta_ext.size()) != meta_ext
-														  : true;
-										   }),
-							std::end(all_files));
+			auto meta_end =
+				std::partition(std::begin(all_files), std::end(all_files), [&meta_ext](const psl::string_view& file) {
+					return (file.size() >= meta_ext.size()) ? file.substr(file.size() - meta_ext.size()) == meta_ext
+															: false;
+				});
 
 			// auto all_files = utility::bash::directory::all_items(bt, res_dir, ("*.") +
 			// psl::from_string8_t(::meta::META_EXTENSION));
 
-			std::cout << "checking for dangling meta files..." << std::endl;
-			auto it = std::remove_if(std::begin(all_files), std::end(all_files), [](const psl::string_view& file) {
-				return !utility::platform::file::exists(file.substr(0, file.find_last_of(('.'))));
-			});
-			std::vector<psl::string> dangling_files{it, std::end(all_files)};
+			// std::cout << "checking for dangling meta files..." << std::endl;
+			// auto it = std::remove_if(std::begin(all_files), std::end(all_files), [](const psl::string_view& file) {
+			//	return !utility::platform::file::exists(file.substr(0, file.find_last_of(('.'))));
+			//});
+			// std::vector<psl::string> dangling_files{it, std::end(all_files)};
 
-			for(const auto& file : dangling_files)
+			/*for(const auto& file : dangling_files)
 			{
 				if(!utility::platform::file::erase(file))
 				{
@@ -592,11 +616,13 @@ namespace assembler::generators
 			std::cout << "deleted " << utility::to_string(dangling_files.size()).c_str() << " dangling files."
 					  << std::endl;
 
-			all_files.erase(it, std::end(all_files));
+			all_files.erase(it, std::end(all_files));*/
+
 			psl::string content;
 			psl::serialization::serializer s;
-			for(const auto& file : all_files)
+			for(auto file_it = std::begin(all_files); file_it != meta_end; ++file_it)
 			{
+				const auto& file{*file_it};
 				if(auto file_content = utility::platform::file::read(file); file_content)
 				{
 					psl::format::container cont{psl::to_string8_t(file_content.value())};
@@ -605,7 +631,6 @@ namespace assembler::generators
 					psl::meta::file* metaPtr = nullptr;
 					try
 					{
-
 						if(!s.deserialize<psl::serialization::decode_from_format>(metaPtr, cont) || !metaPtr)
 						{
 							std::cout << "error: could not decode the meta file at: " << file.c_str() << std::endl;
@@ -619,30 +644,75 @@ namespace assembler::generators
 
 					UID = metaPtr->ID().to_string();
 					delete(metaPtr);
-					auto file_unix = utility::platform::directory::to_unix(file);
-
-					psl::string final_filepath{file_unix.substr(0, file_unix.find_last_of(('.')))};
-					psl::string final_metapath{file_unix};
-					if(!absolute)
+					psl::array<psl::string> files;
+					auto metapath = utility::platform::directory::to_unix(file);
 					{
-						final_filepath = utility::platform::directory::to_generic(
-							std::filesystem::relative(final_filepath, lib_dir).string());
-						final_metapath = utility::platform::directory::to_generic(
-							std::filesystem::relative(final_metapath, lib_dir).string());
+						auto filepath = utility::platform::file::to_platform(metapath.substr(0, metapath.find_last_of('.')));
+						if(filepath.find('.') == filepath.npos)
+						{
+							std::copy_if(meta_end, std::end(all_files), std::back_inserter(files),
+										 [&filepath](const auto& file) {
+											 return file.size() > filepath.size() &&
+													filepath == psl::string_view{file.data(), filepath.size()};
+										 });
+						}
+						else
+						{
+							files.emplace_back(filepath);
+						}
 					}
 
-					auto time = std::to_string(
-						std::filesystem::last_write_time(utility::platform::directory::to_platform(
-															 file_unix.substr(0, file_unix.find_last_of(('.')))))
-							.time_since_epoch()
-							.count());
-					auto metatime = std::to_string(
-						std::filesystem::last_write_time(utility::platform::directory::to_platform(file_unix))
-							.time_since_epoch()
-							.count());
-					content += ("[UID=") + UID + ("][PATH=") + final_filepath + ("][METAPATH=") + final_metapath +
-							   ("][TIME=") + time.substr(0, time.size() - 1) + ("][METATIME=") +
-							   metatime.substr(0, metatime.size() - 1) + ("]\n");
+					bool generated = false;
+					for(const auto& platform_filepath : files)
+					{
+						auto filepath = utility::platform::file::to_generic(platform_filepath);
+						if(!utility::platform::file::exists(filepath))
+						{
+							std::cerr << "meta " << metapath << " pointing to unexisting file " << filepath << std::endl;
+							continue;
+						}
+						generated = true;
+						auto dot  = filepath.find_last_of('.');
+						if(dot != psl::string::npos) dot += 1;
+						auto extension		= filepath.substr(dot, filepath.size() - dot);
+						auto final_filepath = utility::platform::directory::to_generic(
+							std::filesystem::relative(filepath, lib_dir).string());
+						auto final_metapath = utility::platform::directory::to_generic(
+							std::filesystem::relative(metapath, lib_dir).string());
+
+						auto time = std::to_string(
+							std::filesystem::last_write_time(utility::platform::directory::to_platform(filepath))
+								.time_since_epoch()
+								.count());
+						auto metatime = std::to_string(
+							std::filesystem::last_write_time(utility::platform::directory::to_platform(metapath))
+								.time_since_epoch()
+								.count());
+
+						psl::string env = {};
+						if(auto it = m_EnvMaps.find(extension); it != std::end(m_EnvMaps))
+						{
+							env = "[ENV=";
+							env += std::accumulate(
+								std::begin(it->second), std::end(it->second), psl::string{},
+								[](auto& env, const auto& ext) { return (env.empty() ? ext : env + ", " + ext); });
+							env.append("]");
+						}
+						content += "[UID=" + UID + "][PATH=" + final_filepath + "][METAPATH=" + final_metapath +
+								   "][TIME=" + time.substr(0, time.size() - 1) +
+								   "][METATIME=" + metatime.substr(0, metatime.size() - 1) + "]" + env + "\n";
+					}
+
+					if(!generated && clean)
+					{
+						std::cout << "erasing dangling meta file at " << metapath << std::endl;
+						if(!utility::platform::file::erase(metapath))
+						{
+							utility::terminal::set_color(utility::terminal::color::RED);
+							std::cerr << psl::to_string8_t("could not delete '" + metapath + "'\n");
+							utility::terminal::set_color(utility::terminal::color::WHITE);
+						}
+					}
 				}
 			}
 
@@ -654,8 +724,8 @@ namespace assembler::generators
 		{
 			// -g -m -s "c:\\Projects\Paradigm\data\should_see_this\New Text Document.txt" -t "TEXTURE_META"
 			// -g -m -s D:\Projects\Paradigm\data\textures -r -t "TEXTURE_META"
-			// -g -m -i "C:\Projects\github\example_data\source\fonts/*" -o
-			// "C:\Projects\github\example_data\data\fonts/*.meta"
+			// -g -m -i "C:\Projects\github\example_data\source\textures/*" -o
+			// "C:\Projects\github\example_data\data\textures/*.meta" -f -u
 			auto input_path		  = assembler::pathstring{pack["input"]->as<psl::string>().get()};
 			auto output_path	  = assembler::pathstring{pack["output"]->as<psl::string>().get()};
 			auto meta_type		  = pack["type"]->as<psl::string>().get();
@@ -751,7 +821,7 @@ namespace assembler::generators
 							texture_meta->depth(header.dwDepth);
 							texture_meta->mip_levels(header.dwMipMapCount);
 							texture_meta->format(utility::dds::to_format(header));
-							//assert_debug_break(texture_meta->format() != core::gfx::format::undefined);
+							// assert_debug_break(texture_meta->format() != core::gfx::format::undefined);
 						}
 					}
 					break;
@@ -786,6 +856,7 @@ namespace assembler::generators
 		}
 
 		std::unordered_map<psl::string, psl::string> m_FileMaps;
+		std::unordered_map<psl::string, psl::array<psl::string>> m_EnvMaps;
 	};
 } // namespace assembler::generators
 // const uint64_t core::meta::texture::polymorphic_identity{serialization::register_polymorphic<core::meta::texture>()};

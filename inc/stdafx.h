@@ -8,8 +8,15 @@
 #define NO_MIN_MAX
 #undef MIN
 #undef MAX
-#include "psl/ustring.h"
 #include "psl/string_utils.h"
+#include "psl/ustring.h"
 
+#include "spdlog/logger.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
+
+namespace assembler
+{
+	extern std::shared_ptr<spdlog::logger> log;
+}
 
 // TODO: reference additional headers your program requires here

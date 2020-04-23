@@ -4,6 +4,10 @@ set(LOCAL_PROJECT ${PROJECT_ASSEMBLER})
 project(${LOCAL_PROJECT} VERSION 1.0.0 LANGUAGES CXX)
 
 include(FetchContent)
+
+if(MSVC) # we currently make no distinction for CLang (todo)
+	add_compile_options(/MP)
+endif()
 # -------------------------------------------------------------------------------------------------
 # Paradigm Engine setup
 # -------------------------------------------------------------------------------------------------
@@ -24,10 +28,24 @@ set_property(TARGET ${PROJECT_PSL} PROPERTY FOLDER "paradigm")
 set_property(TARGET ${PROJECT_CORE} PROPERTY FOLDER "paradigm")
 
 # -------------------------------------------------------------------------------------------------
+# JSON setup
+# -------------------------------------------------------------------------------------------------
+
+FetchContent_Declare(nlohmann_json GIT_REPOSITORY https://github.com/nlohmann/json.git GIT_TAG v3.7.0 GIT_SHALLOW TRUE GIT_PROGRESS TRUE)
+FetchContent_GetProperties(nlohmann_json)
+if(NOT nlohmann_json_POPULATED)
+	message(STATUS "fetching nlohmann/json...")
+	FetchContent_Populate(nlohmann_json)
+	set(JSON_BuildTests OFF CACHE INTERNAL "")
+	add_subdirectory(${nlohmann_json_SOURCE_DIR} ${nlohmann_json_BINARY_DIR})
+	message(STATUS "nlohmann/json fetched")
+endif()
+
+# -------------------------------------------------------------------------------------------------
 # Assimp setup
 # -------------------------------------------------------------------------------------------------
 
-FetchContent_Declare(assimp GIT_REPOSITORY https://github.com/assimp/assimp GIT_TAG v4.1.0 GIT_SHALLOW TRUE GIT_PROGRESS TRUE)
+FetchContent_Declare(assimp GIT_REPOSITORY https://github.com/assimp/assimp GIT_TAG v.5.0.0.rc2 GIT_SHALLOW TRUE GIT_PROGRESS TRUE)
 FetchContent_GetProperties(assimp)
 if(NOT assimp_POPULATED)
 	message(STATUS "fetching assimp/assimp...")
@@ -89,8 +107,7 @@ add_executable(${LOCAL_PROJECT} ${INC} ${SRC} ${GENERATOR_INFORMATION} ${NATVIS}
 set_property(TARGET ${LOCAL_PROJECT} PROPERTY FOLDER "tools")
 add_dependencies(${LOCAL_PROJECT} glslang)
 target_link_libraries(${LOCAL_PROJECT} PUBLIC 
-	${PROJECT_PSL} ${PE_DL_LIBS} ${PROJECT_CORE} assimp)
-	
+	${PROJECT_PSL} ${PE_DL_LIBS} ${PROJECT_CORE} assimp zlib nlohmann_json)
 
 target_include_directories(${LOCAL_PROJECT}
 	PUBLIC 

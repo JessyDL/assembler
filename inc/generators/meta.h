@@ -516,7 +516,8 @@ namespace assembler::generators
 								"when true, and the source path is a directory, it will recursively go through it",
 								{"recursive", "r"},
 								false},
-				cli_value<bool>{"force", "remove existing and regenerate them from scratch", {"force", "f"}, false},
+				cli_value<bool>{
+					"force", "remove existing and regenerate them from scratch", {"force", "f"}, false, true},
 				cli_value<bool>{
 					"update",
 					"update is a specialization of force, where everything will be regenerated except the UID",
@@ -571,8 +572,8 @@ namespace assembler::generators
 			if(!utility::platform::directory::exists(res_dir))
 			{
 				utility::terminal::set_color(utility::terminal::color::RED);
-				std::cerr << "resource directory does not exist, so nothing to generate. This was likely unintended?"
-						  << std::endl;
+				assembler::log->error(
+					"resource directory does not exist, so nothing to generate. This was likely unintended?");
 				utility::terminal::set_color(utility::terminal::color::WHITE);
 				return;
 			}
@@ -580,14 +581,11 @@ namespace assembler::generators
 			if(!utility::platform::file::exists(lib_dir + lib_name))
 			{
 				utility::platform::file::write(lib_dir + lib_name, "");
-				std::cout << "file not found, created one.";
+				assembler::log->info("file not found, created one.");
 			}
 
-			// psl::string content{(!regenerate) ? utility::bash::file::read(bt, lib_dir, lib_name).value_or(_T("")) :
-			// _T("")};
-
 			auto all_files = utility::platform::directory::all_files(res_dir, true);
-			// remove all files that don't end in .meta
+
 			psl::string meta_ext = "." + psl::meta::META_EXTENSION;
 			auto meta_end =
 				std::partition(std::begin(all_files), std::end(all_files), [&meta_ext](const psl::string_view& file) {
@@ -595,28 +593,6 @@ namespace assembler::generators
 															: false;
 				});
 
-			// auto all_files = utility::bash::directory::all_items(bt, res_dir, ("*.") +
-			// psl::from_string8_t(::meta::META_EXTENSION));
-
-			// std::cout << "checking for dangling meta files..." << std::endl;
-			// auto it = std::remove_if(std::begin(all_files), std::end(all_files), [](const psl::string_view& file) {
-			//	return !utility::platform::file::exists(file.substr(0, file.find_last_of(('.'))));
-			//});
-			// std::vector<psl::string> dangling_files{it, std::end(all_files)};
-
-			/*for(const auto& file : dangling_files)
-			{
-				if(!utility::platform::file::erase(file))
-				{
-					utility::terminal::set_color(utility::terminal::color::RED);
-					std::cerr << psl::to_string8_t("could not delete '" + file + "'\n");
-					utility::terminal::set_color(utility::terminal::color::WHITE);
-				}
-			}
-			std::cout << "deleted " << utility::to_string(dangling_files.size()).c_str() << " dangling files."
-					  << std::endl;
-
-			all_files.erase(it, std::end(all_files));*/
 
 			psl::string content;
 			psl::serialization::serializer s;
@@ -633,7 +609,7 @@ namespace assembler::generators
 					{
 						if(!s.deserialize<psl::serialization::decode_from_format>(metaPtr, cont) || !metaPtr)
 						{
-							std::cout << "error: could not decode the meta file at: " << file.c_str() << std::endl;
+							assembler::log->info("error: could not decode the meta file at: {}", file.c_str());
 							continue;
 						}
 					}
@@ -647,7 +623,8 @@ namespace assembler::generators
 					psl::array<psl::string> files;
 					auto metapath = utility::platform::directory::to_unix(file);
 					{
-						auto filepath = utility::platform::file::to_platform(metapath.substr(0, metapath.find_last_of('.')));
+						auto filepath =
+							utility::platform::file::to_platform(metapath.substr(0, metapath.find_last_of('.')));
 						if(filepath.find('.') == filepath.npos)
 						{
 							std::copy_if(meta_end, std::end(all_files), std::back_inserter(files),
@@ -668,7 +645,7 @@ namespace assembler::generators
 						auto filepath = utility::platform::file::to_generic(platform_filepath);
 						if(!utility::platform::file::exists(filepath))
 						{
-							std::cerr << "meta " << metapath << " pointing to unexisting file " << filepath << std::endl;
+							assembler::log->error("meta {0} pointing to unexisting file {1}", metapath, filepath);
 							continue;
 						}
 						generated = true;
@@ -709,7 +686,7 @@ namespace assembler::generators
 						if(!utility::platform::file::erase(metapath))
 						{
 							utility::terminal::set_color(utility::terminal::color::RED);
-							std::cerr << psl::to_string8_t("could not delete '" + metapath + "'\n");
+							assembler::log->error("could not delete '{}'", metapath);
 							utility::terminal::set_color(utility::terminal::color::WHITE);
 						}
 					}
@@ -717,15 +694,14 @@ namespace assembler::generators
 			}
 
 			utility::platform::file::write(lib_dir + lib_name, psl::string_view(content.data(), content.size() - 1));
-			std::cout << "wrote out a new meta library at: '" << psl::to_string8_t(lib_dir + lib_name) << ("'\n");
+			assembler::log->info("wrote out a new meta library at: '{}'", psl::to_string8_t(lib_dir + lib_name));
 		}
 
 		void on_meta_generate(cli_pack& pack)
 		{
 			// -g -m -s "c:\\Projects\Paradigm\data\should_see_this\New Text Document.txt" -t "TEXTURE_META"
 			// -g -m -s D:\Projects\Paradigm\data\textures -r -t "TEXTURE_META"
-			// -g -m -i "C:\Projects\github\example_data\source\textures/*" -o
-			// "C:\Projects\github\example_data\data\textures/*.meta" -f -u
+			// -g -m -i "C:\Projects\github\example_data\source/*" -o "C:\Projects\github\example_data\data/*.meta" -u
 			auto input_path		  = assembler::pathstring{pack["input"]->as<psl::string>().get()};
 			auto output_path	  = assembler::pathstring{pack["output"]->as<psl::string>().get()};
 			auto meta_type		  = pack["type"]->as<psl::string>().get();
@@ -738,7 +714,7 @@ namespace assembler::generators
 			if(input_path->size() == 0)
 			{
 				utility::terminal::set_color(utility::terminal::color::RED);
-				std::cerr << "error: the input source path did not contain any characters." << std::endl;
+				assembler::log->info("error: the input source path did not contain any characters.");
 				utility::terminal::set_color(utility::terminal::color::WHITE);
 				return;
 			}
@@ -764,15 +740,15 @@ namespace assembler::generators
 
 				auto extension = input->substr(input->rfind('.') + 1);
 
-
-				if(meta_type.empty())
+				auto meta_t = meta_type;
+				if(meta_t.empty())
 				{
-					meta_type = "META";
-					auto it   = m_FileMaps.find(extension);
-					if(it != std::end(m_FileMaps)) meta_type = it->second;
+					meta_t  = "META";
+					auto it = m_FileMaps.find(extension);
+					if(it != std::end(m_FileMaps)) meta_t = it->second;
 				}
 
-				auto id = utility::crc64(psl::to_string8_t(meta_type));
+				auto id = utility::crc64(psl::to_string8_t(meta_t));
 				if(auto it = psl::serialization::accessor::polymorphic_data().find(id);
 				   it != psl::serialization::accessor::polymorphic_data().end())
 				{
@@ -837,18 +813,16 @@ namespace assembler::generators
 
 
 					utility::platform::file::write(output, psl::from_string8_t(cont.to_string()));
-					std::cout << "wrote a " << meta_type << " file to " << output.platform() << " from "
-							  << input.platform() << "\n";
+					assembler::log->info("wrote a {0} file to {1} from {2}", meta_t, output.platform(),
+										 input.platform());
 				}
 				else
 				{
 					utility::terminal::set_color(utility::terminal::color::RED);
-					std::cerr << psl::to_string8_t("error: could not deduce the polymorphic type from the given key '" +
-												   meta_type + "'")
-							  << std::endl;
-					std::cerr
-						<< ("  either the given key was incorrect, or the type was not registered to the assembler.")
-						<< std::endl;
+					assembler::log->error("error: could not deduce the polymorphic type from the given key '{}'",
+										  meta_t);
+					assembler::log->error(
+						"  either the given key was incorrect, or the type was not registered to the assembler.");
 					utility::terminal::set_color(utility::terminal::color::WHITE);
 					continue;
 				}

@@ -1,22 +1,23 @@
 ﻿// assembler.cpp : Defines the entry point for the console application.
 //
 
-#include "stdafx.h"
-#include <iostream>
 #include "psl/string_utils.h"
 #include "psl/ustring.h"
+#include "stdafx.h"
 #include <array>
+#include <iostream>
 
 #ifdef WIN32
-#include <windows.h>
-#include <io.h>
 #include <fcntl.h>
+#include <io.h>
+#include <windows.h>
 #endif
 
 #include "cli/value.h"
-#include "generators/shader.h"
-#include "generators/models.h"
 #include "generators/meta.h"
+#include "generators/models.h"
+#include "generators/shader.h"
+
 
 using psl::cli::pack;
 using psl::cli::value;
@@ -49,16 +50,16 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 
 static psl::string_view get_input()
 {
-	static psl::string8_t input(4096, ('\0'));
+	static psl::pstring_t input(4096, ('\0'));
 	std::memset(input.data(), ('\0'), sizeof(psl::platform::char_t) * input.size());
-	std::cin.getline(input.data(), input.size() - 1);
-
-	return {input.data(), psl::strlen(input.data())};
-#if WIN32
-	static psl::string override;
-	override = psl::to_string8_t(input);
-	return {override.data(), psl::strlen(override.data())};
+#ifdef WIN32&& UNICODE
+	static psl::string storage(8192, ('\0'));
+	std::wcin.getline(input.data(), input.size() - 1);
+	auto intermediate = psl::to_string8_t(psl::platform::view(input.data(), std::wcslen(input.data())));
+	std::memcpy(storage.data(), intermediate.data(), intermediate.size());
+	return {storage.data(), intermediate.size()};
 #else
+	std::cin.getline(input.data(), input.size() - 1);
 	return {input.data(), psl::strlen(input.data())};
 #endif
 }
@@ -68,7 +69,8 @@ int main(int argc, char* argv[])
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
 
-
+	assembler::log = std::make_shared<spdlog::logger>("", std::make_shared<spdlog::sinks::stdout_color_sink_st>());
+	assembler::log->set_pattern("%v");
 #ifdef WIN32
 	SetConsoleCtrlHandler((PHANDLER_ROUTINE)CtrlHandler, TRUE);
 
@@ -92,10 +94,9 @@ int main(int argc, char* argv[])
 	//_setmode(_fileno(stdout), _O_U8TEXT);
 #endif
 
-	std::cout << _T("welcome to assembler, use -h or --help to get information on the commands.\nyou can also pass ")
-				 _T("the specific command (or its chain) after --help to get more information of that specific ")
-				 _T("command, such as '--help generate shader'.")
-			  << std::endl;
+	assembler::log->info("welcome to assembler, use -h or --help to get information on the commands.\nyou can also pass "
+				 "the specific command (or its chain) after --help to get more information of that specific "
+				 "command, such as '--help generate shader'.\n");
 
 	assembler::generators::shader shader_gen{};
 	assembler::generators::models model_gen{};

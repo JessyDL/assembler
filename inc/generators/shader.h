@@ -2,8 +2,6 @@
 #include "psl/string_utils.h"
 #include "cli/value.h"
 #include "psl/terminal_utils.h"
-#include "psl/meta.h"
-#include "meta/shader.h"
 #include <set>
 #include "psl/timer.h"
 
@@ -15,54 +13,8 @@ namespace assembler::generators
 {
 	class shader
 	{
-		enum class block_type
-		{
-			unknown_t = 0,
-			struct_t,
-			attribute_t,
-			descriptor_t,
-			inlined_t,
-			interface_t
-		};
-
 		template <typename T>
 		using cli_value = psl::cli::value<T>;
-
-
-		struct vertex_attribute
-		{
-			size_t format;
-			size_t offset;
-		};
-
-		struct parsed_element
-		{
-			psl::string name;
-			psl::string type;
-			size_t size;
-			std::optional<uint64_t> location;
-			std::optional<psl::string> inlined_scope;
-
-			std::optional<psl::string> backing_type;
-			std::optional<psl::string> default_value;
-			std::optional<psl::string> in_qualifier;
-			std::optional<psl::string> out_qualifier;
-			std::optional<psl::string> bind_qualifier;
-			std::optional<psl::string> buffer;
-			std::optional<size_t> rate;
-			std::vector<vertex_attribute> vAttribute;
-		};
-
-		struct parsed_scope
-		{
-			psl::string unique_name;
-			psl::string name;
-			size_t size;
-			shader::block_type type;
-			psl::string scope;
-			std::optional<psl::string> parent{std::nullopt};
-			std::vector<parsed_element> elements;
-		};
 
 	  public:
 		struct file_data
@@ -71,27 +23,10 @@ namespace assembler::generators
 			psl::string content;
 			psl::string filename;
 			std::vector<std::pair<psl::string, size_t>> includes;
-			std::vector<parsed_scope> scopes;
 			uint8_t type;
-
-			psl::string using_in_type;
-			psl::string using_in_name;
-			psl::string using_out_type;
-			psl::string using_out_name;
-			psl::string using_descr_type;
-			psl::string using_descr_name;
 		};
 
 	  private:
-		struct result_shader
-		{
-			psl::string content;
-			psl::string filename;
-			parsed_scope out;
-			parsed_scope in;
-			parsed_scope descriptor;
-		};
-
 		std::unordered_map<psl::string, size_t> m_KnownTypes{
 			{("bool"), 1},	{("int"), 4},		  {("uint"), 4},	  {("float"), 4},	  {("double"), 8},
 			{("sampler"), 0}, {("sampler2D"), 0}, {("sampler3D"), 0}, {("samplerCube"), 0}};
@@ -170,26 +105,14 @@ namespace assembler::generators
 		}
 
 	  private:
-		bool all_scopes(file_data& data);
-		bool parse_includes(file_data& data);
-
-
-		bool parse_using(file_data& data, psl::string name, psl::string& type_out, psl::string& name_out);
-
-		bool parse_using(file_data& data);
-
 		bool parse(file_data& data);
 		bool cache_file(const psl::string& file);
 
 		psl::string construct(const file_data& fdata, std::set<psl::string_view>& includes) const;
 
-		bool find(const file_data& fdata, const psl::string& name, block_type type, parsed_scope* out) const;
-
-		bool construct(const file_data& fdata, result_shader& out, psl::string_view entry = ("main")) const;
-		void on_generate(psl::cli::pack& pack);
-
 		bool generate(assembler::pathstring ifile, assembler::pathstring ofile, bool compiled_glsl, bool optimize,
 					  psl::array<psl::string> types);
+		void on_generate(psl::cli::pack& pack);
 
 		std::unordered_map<psl::string, file_data> m_Cache; // Caches the files read. Note that the filepath
 															// will always be Unix style regardless of input

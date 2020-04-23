@@ -14,6 +14,7 @@ namespace tools
 	  static constexpr psl::string_view type_str[]{"vert", ("tesc"), ("tese"), ("geom"), ("frag"), ("comp")};
 		enum class type : uint8_t
 		{
+			unknown = 100,
 			vert = 0,
 			tesc = 1,
 			tese = 2,

@@ -113,10 +113,14 @@ int main(int argc, char* argv[])
 
 	};
 
+	psl::array<psl::string_view> commands;
+	for (auto i = 1; i < argc; ++i)
+		commands.emplace_back(argv[i]);
+	root.parse(commands);
 
 	while(!root["exit"]->as<bool>().get())
 	{
-		psl::array<psl::string_view> commands = utility::string::split(get_input(), ("|"));
+		commands = utility::string::split(get_input(), ("|"));
 		root.parse(commands);
 	}
 	return 0;

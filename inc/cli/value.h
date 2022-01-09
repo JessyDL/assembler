@@ -7,11 +7,11 @@
 #include "psl/static_array.h"
 #include "psl/string_utils.h"
 #include "psl/ustring.h"
+#include "stdafx.h"
 #include <iostream>
 #include <memory>
 #include <optional>
 #include <queue>
-#include "stdafx.h"
 
 ////namespace psl
 ////{
@@ -178,6 +178,8 @@ namespace psl::cli
 				return cpy;
 			}
 
+			virtual void reset() = 0;
+
 		  private:
 			void validate(const psl::string8_t& command)
 			{
@@ -267,6 +269,19 @@ namespace psl::cli
 			else
 			{
 				*(m_Value.value()) = val;
+			}
+		}
+
+		void reset() override
+		{
+			if constexpr(std::is_same<bool, T>::value)
+				set((m_Default) ? !(*m_Default.value()) : true);
+			else
+			{
+				if(m_Default)
+					set(*m_Default.value());
+				else
+					set({});
 			}
 		}
 
@@ -436,8 +451,17 @@ namespace psl::cli
 	  public:
 		void parse(psl::array<psl::string_view> commands)
 		{
+			reset();
+			if(commands.size() == 0 || std::all_of(std::begin(commands), std::end(commands),
+						   [](const auto& command) { return command.empty(); }))
+			{
+				assembler::log->warn("no commands entered...");
+				return;
+			}
+
 			for(const auto& view : commands)
 			{
+				if(view.empty()) continue;
 				// todo: support the ' delimiter
 				psl::array<std::pair<size_t, size_t>> occupied_ranges{};
 
@@ -464,11 +488,11 @@ namespace psl::cli
 					token_offset += (is_long_command) ? 2 : 1;
 
 					size_t cmd_start = token_offset;
-					size_t cmd_end   = view.find(' ', cmd_start);
+					size_t cmd_end	 = view.find(' ', cmd_start);
 					size_t arg_start = view.find_first_not_of(" \"", cmd_end);
-					size_t arg_end   = view.find('-', token_offset);
+					size_t arg_end	 = view.find('-', token_offset);
 
-					cmd_end   = (cmd_end == view.npos) ? view.size() : cmd_end;
+					cmd_end	  = (cmd_end == view.npos) ? view.size() : cmd_end;
 					arg_start = (arg_start == view.npos) ? view.size() : arg_start;
 
 					while(arg_end != psl::string_view::npos && occupied(arg_end, occupied_ranges))
@@ -508,7 +532,10 @@ namespace psl::cli
 				bool error = false;
 				parse(std::begin(commands), std::end(commands), processed_packs, error);
 
-				if(error) return;
+				if(error)
+				{
+					return;
+				}
 				while(processed_packs.size() > 0)
 				{
 					processed_packs.front()->operator()();
@@ -669,6 +696,23 @@ namespace psl::cli
 
 		bool is_help(const command& cmd) const noexcept { return cmd.cmd == "help" || cmd.cmd == "h"; }
 
+		void reset()
+		{
+			for(auto& value : m_ModifiedValues)
+			{
+				if(value->is_a<cli::pack>())
+				{
+					pack* new_child = value->as<cli::pack>().get_shared().operator->();
+					new_child->reset();
+				}
+				else
+				{
+					value->reset();
+				}
+			}
+			m_ModifiedValues.clear();
+		}
+
 		psl::array<command>::const_iterator parse(psl::array<command>::const_iterator begin,
 												  psl::array<command>::const_iterator end,
 												  std::queue<pack*>& processed_packs, bool& error)
@@ -692,6 +736,7 @@ namespace psl::cli
 					if(new_child != this)
 					{
 						command_it = std::prev(new_child->parse(std::next(command_it), end, processed_packs, error));
+						m_ModifiedValues.emplace_back(value);
 					}
 				}
 				else
@@ -706,6 +751,7 @@ namespace psl::cli
 						error = true;
 						return end;
 					}
+					m_ModifiedValues.emplace_back(value);
 				}
 				// psl::cout << '\t' << "command: " << psl::to_platform_string(command_it->cmd)
 				//		  << " depth: " << psl::to_platform_string(std::to_string(stack.size() - 1))
@@ -747,6 +793,7 @@ namespace psl::cli
 			m_Values.emplace_back(std::make_shared<value<T>>(val));
 		}
 		psl::array<std::shared_ptr<details::value_base>> m_Values;
+		psl::array<std::shared_ptr<details::value_base>> m_ModifiedValues;
 		std::optional<std::function<void(pack&)>> m_Callback;
 	};
 } // namespace psl::cli

@@ -3,7 +3,7 @@
 #include "psl/library.h"
 #include "psl/math/math.hpp"
 #include "psl/meta.h"
-#include "psl/serialization.h"
+#include "psl/serialization/serializer.hpp"
 #include "psl/terminal_utils.h"
 #include "stdafx.h"
 #include <iostream>
@@ -118,6 +118,7 @@ bool write_meta(T& data, psl::string output_file, const psl::string_view& extens
 			return false;
 		}
 	}
+	return true;
 }
 
 bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 3> axis_setup, bool binary)
@@ -144,7 +145,7 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 				return false;
 			}
 
-			for(DWORD j = 0; j < 3; j++)
+			for(uint32_t j = 0; j < 3; j++)
 			{
 				indices[iface * 3 + j] = pAIFaces[iface].mIndices[j];
 			}
@@ -414,11 +415,11 @@ void models::on_invoke(cli::pack& pack)
 	recurse_log = [&recurse_log](size_t depth, aiNode& node,
 								 std::unordered_map<size_t, psl::string>& meshNames) -> void {
 		assembler::log->info(psl::string(depth * 2, ' ') + node.mName.C_Str() + " meshes: {0}", node.mNumMeshes);
-		for(auto i = 0; i < node.mNumMeshes; ++i)
+		for(auto i = 0u; i < node.mNumMeshes; ++i)
 		{
 			meshNames[node.mMeshes[i]] = node.mName.C_Str();
 		}
-		for(auto i = 0; i < node.mNumChildren; ++i)
+		for(auto i = 0u; i < node.mNumChildren; ++i)
 		{
 			std::invoke(recurse_log, depth + 1, *node.mChildren[i], meshNames);
 		}
@@ -438,7 +439,7 @@ void models::on_invoke(cli::pack& pack)
 	}
 
 
-	for(auto i = 0; i < pScene->mNumAnimations; ++i)
+	for(auto i = 0u; i < pScene->mNumAnimations; ++i)
 	{
 		auto& animation = *pScene->mAnimations[i];
 		if(!import_animation(animation, output_file, encode_to_binary)) goto error;

@@ -10,10 +10,11 @@
 #include "psl/array.h"
 #include "psl/array_view.h"
 #include "psl/library.h"
-#include "psl/serialization.h"
+#include "psl/serialization/serializer.hpp"
 #include "psl/ustring.h"
 
 #include "meta/shader.h"
+#include "data/material.h"
 
 struct typeinfo
 {
@@ -146,6 +147,11 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 	auto outputs		= json["outputs"];
 	auto push_constants = json["push_constants"];
 
+	if (push_constants.size() != 0)
+	{
+		assembler::log->error("ERROR: push constants are currently not supported due to unavailability of shadow implementation in GLES.");
+		return false;
+	}
 	// bindings
 	auto ubos			   = json["ubos"];
 	auto ssbos			   = json["ssbos"];
@@ -200,27 +206,27 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 			{
 				member.count(it->second.count);
 				member.stride(it->second.stride);
-				member.size(it->second.count * 4);
-				//member.format(it->second.format);
 				member.offset(member_json["offset"]);
 			}
 			else
 			{
-				// array (count)
-				// array_size_is_literal T/F
-				// array_stride
+				// todo: 'array_size_is_literal' is boolean value indicating if a 'specialization constant' is driving the count
+				// we currently lack support
+				psl::array<core::meta::shader::member> sub_members;
+				parse_type(member_json["type"], json, sub_members, parse_type);
+				member.members(sub_members);
 				if (member_json.contains("array"))
 				{
-					psl::array<core::meta::shader::member> sub_members;
-					parse_type(member_json["type"], json, sub_members, parse_type);
 					assert(member_json["array"].size() == 1 || "we only support one dimensional arrays as of now");
+					assert(member_json["array_size_is_literal"] == true || "unsupported specialization constant in array size");
 					member.count(member_json["array"][0]);
 					member.stride(member_json["array_stride"]);
-					member.size(member.stride() * member.count());
-					member.members(sub_members);
 				}
 				else
-					throw std::runtime_error("unhandled type");
+				{
+					member.count(1);
+					member.stride(std::accumulate(std::begin(sub_members), std::end(sub_members), size_t{ 0 }, [](size_t sum, const core::meta::shader::member& member) { return sum + member.size(); }));
+				}
 			}
 		}
 	};
@@ -233,8 +239,11 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 		descr.binding(value["binding"]);
 		descr.name(value["name"]);
 		descr.qualifier(shader::descriptor::dependency::in);
-		descr.type(core::gfx::binding_type::uniform_buffer);
-
+		descr.type(utility::string::contains(descr.name(), "_DYNAMIC_") ? core::gfx::binding_type::uniform_buffer_dynamic : core::gfx::binding_type::uniform_buffer);
+		if (descr.name() == core::data::material::MATERIAL_DATA)
+		{
+			descr.type(core::gfx::binding_type::uniform_buffer_dynamic);
+		}
 		psl::array<core::meta::shader::member> members;
 		parse_type(value["type"], json, members, parse_type);
 		descr.members(members);
@@ -315,7 +324,8 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 		descr.name(name);
 		descr.qualifier((in && out) ? shader::descriptor::dependency::inout
 									: (in) ? shader::descriptor::dependency::in : shader::descriptor::dependency::out);
-		descr.type(core::gfx::binding_type::storage_buffer);
+
+		descr.type(utility::string::contains(descr.name(), "_DYNAMIC_")? core::gfx::binding_type::storage_buffer_dynamic: core::gfx::binding_type::storage_buffer);
 
 		psl::array<core::meta::shader::member> members;
 		parse_type(buffer["type"], json, members, parse_type);

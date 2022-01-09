@@ -2,10 +2,10 @@
 #include "gfx/types.h"
 #include "glslang_utils.h"
 #include "psl/application_utils.h"
-#include "psl/platform_utils.h"
-#include "psl/serialization.h"
-#include "psl/meta.h"
 #include "psl/library.h"
+#include "psl/meta.h"
+#include "psl/platform_utils.h"
+#include "psl/serialization/serializer.hpp"
 #include "stdafx.h"
 #include "utf8.h"
 #include "utils.h"
@@ -23,7 +23,7 @@ bool shader::parse(file_data& data)
 	auto inc_n = data.content.find(("#include"));
 	while(inc_n != psl::string_view::npos)
 	{
-		auto endline_n	= data.content.find(("\n"), inc_n);
+		auto endline_n	  = data.content.find(("\n"), inc_n);
 		auto file_begin_n = data.content.find(("\""), inc_n);
 		if(file_begin_n > endline_n) file_begin_n = data.content.find(("\'"), inc_n);
 		if(file_begin_n > endline_n)
@@ -162,7 +162,7 @@ psl::string shader::construct(const file_data& fdata, std::set<psl::string_view>
 }
 
 bool shader::generate(assembler::pathstring ifile, assembler::pathstring ofile, bool compiled_glsl, bool optimize,
-					   psl::array<psl::string> types)
+					  psl::array<psl::string> types)
 {
 	auto directory = utility::platform::file::to_platform(ofile->substr(0, ofile->find_last_of("/")));
 	if(!utility::platform::directory::exists(directory)) utility::platform::directory::create(directory, true);
@@ -251,9 +251,9 @@ void shader::on_generate(psl::cli::pack& pack)
 
 	auto ifile		   = assembler::pathstring{pack["input"]->as<psl::string>().get()};
 	auto ofile		   = assembler::pathstring{pack["output"]->as<psl::string>().get()};
-	auto overwrite	 = pack["overwrite"]->as<bool>().get();
+	auto overwrite	   = pack["overwrite"]->as<bool>().get();
 	auto compiled_glsl = pack["compiled glsl"]->as<bool>().get();
-	auto optimize	  = pack["optimize"]->as<bool>().get();
+	auto optimize	   = pack["optimize"]->as<bool>().get();
 	m_Verbose		   = pack["verbose"]->as<bool>().get();
 	auto types		   = pack["types"]->as<std::vector<psl::string>>().get();
 

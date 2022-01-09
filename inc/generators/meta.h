@@ -433,8 +433,8 @@ namespace assembler::generators
 			}
 
 			static constexpr const char serialization_name[6]{"ENTRY"};
-			psl::serialization::property<psl::array<psl::string>, const_str("EXTENSIONS", 10)> extensions;
-			psl::serialization::property<psl::string, const_str("META", 4)> meta;
+			psl::serialization::property<"EXTENSIONS", psl::array<psl::string>> extensions;
+			psl::serialization::property<"META", psl::string> meta;
 		};
 		struct environment
 		{
@@ -446,8 +446,8 @@ namespace assembler::generators
 			}
 
 			static constexpr const char serialization_name[12]{"ENVIRONMENT"};
-			psl::serialization::property<psl::array<psl::string>, const_str("EXTENSIONS", 10)> extensions;
-			psl::serialization::property<psl::string, const_str("NAME", 4)> name;
+			psl::serialization::property<"EXTENSIONS", psl::array<psl::string>> extensions;
+			psl::serialization::property<"NAME", psl::string> name;
 		};
 		struct mapping_table
 		{
@@ -487,8 +487,8 @@ namespace assembler::generators
 			}
 
 		  private:
-			psl::serialization::property<psl::array<extension>, const_str("MAPPING", 7)> m_Mappings;
-			psl::serialization::property<psl::array<environment>, const_str("ENVIRONMENTS", 12)> m_Environments;
+			psl::serialization::property<"MAPPING",  psl::array<extension>> m_Mappings;
+			psl::serialization::property<"ENVIRONMENTS", psl::array<environment>> m_Environments;
 		};
 
 	  public:
@@ -672,7 +672,9 @@ namespace assembler::generators
 							env = "[ENV=";
 							env += std::accumulate(
 								std::begin(it->second), std::end(it->second), psl::string{},
-								[](auto& env, const auto& ext) { return (env.empty() ? ext : env + ", " + ext); });
+												   [](psl::string env, const psl::string& ext) {
+													   return (env.empty() ? ext : std::move(env) + ", " + ext);
+												   });
 							env.append("]");
 						}
 						content += "[UID=" + UID + "][PATH=" + final_filepath + "][METAPATH=" + final_metapath +
@@ -699,8 +701,8 @@ namespace assembler::generators
 
 		void on_meta_generate(cli_pack& pack)
 		{
-			// -g -m -s "c:\\Projects\Paradigm\data\should_see_this\New Text Document.txt" -t "TEXTURE_META"
-			// -g -m -s D:\Projects\Paradigm\data\textures -r -t "TEXTURE_META"
+			/// -g -m -s "c:\\Projects\Paradigm\data\should_see_this\New Text Document.txt" -t "TEXTURE_META"
+			// -g -m -i "C:\Projects\github\example_data\source/textures/*"  -o "C:\Projects\github\example_data\data/textures/*.meta" -r -t "TEXTURE_META" -u
 			// -g -m -i "C:\Projects\github\example_data\source/*" -o "C:\Projects\github\example_data\data/*.meta" -u
 			auto input_path		  = assembler::pathstring{pack["input"]->as<psl::string>().get()};
 			auto output_path	  = assembler::pathstring{pack["output"]->as<psl::string>().get()};

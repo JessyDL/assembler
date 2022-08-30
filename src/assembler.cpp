@@ -1,8 +1,8 @@
 ﻿// assembler.cpp : Defines the entry point for the console application.
 //
 
-#include "psl/string_utils.h"
-#include "psl/ustring.h"
+#include "psl/string_utils.hpp"
+#include "psl/ustring.hpp"
 #include "stdafx.h"
 #include <array>
 #include <iostream>
@@ -18,7 +18,7 @@
 #include "generators/models.h"
 #include "generators/shader.h"
 
-#include "resource/cache.h"
+#include "resource/cache.hpp"
 
 #include "psl/collections/spmc.hpp"
 
@@ -72,24 +72,25 @@ static psl::string_view get_input()
 }
 
 #include "paradigm.hpp"
-#include "psl/application_utils.h"
-#include "psl/literals.h"
+#include "psl/application_utils.hpp"
+#include "psl/literals.hpp"
 
-#include "data/buffer.h"
-#include "data/material.h"
-#include "data/window.h"
-#include "os/surface.h"
+#include "data/buffer.hpp"
+#include "data/material.hpp"
+#include "data/window.hpp"
+#include "os/surface.hpp"
+#include "os/context.hpp"
 
-#include "gfx/buffer.h"
-#include "gfx/computepass.h"
-#include "gfx/context.h"
-#include "gfx/drawpass.h"
-#include "gfx/material.h"
-#include "gfx/render_graph.h"
-#include "gfx/swapchain.h"
+#include "gfx/buffer.hpp"
+#include "gfx/computepass.hpp"
+#include "gfx/context.hpp"
+#include "gfx/drawpass.hpp"
+#include "gfx/material.hpp"
+#include "gfx/render_graph.hpp"
+#include "gfx/swapchain.hpp"
 
 
-#include "logging.h"
+#include "logging.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/dist_sink.h"
 #ifdef _MSC_VER
@@ -204,20 +205,21 @@ std::atomic<graphics_backend> gBackend{graphics_backend::undefined};
 
 using namespace core;
 
-#include "data/sampler.h"
-#include "gfx/sampler.h"
-#include "gfx/texture.h"
+#include "data/sampler.hpp"
+#include "gfx/sampler.hpp"
+#include "gfx/texture.hpp"
 
-void load_texture(resource::cache& cache, handle<core::gfx::context> context_handle, const psl::UID& texture)
+void load_texture(resource::cache_t& cache, handle<core::gfx::context> context_handle, const psl::UID& texture)
 {
 	if(!cache.contains(texture))
 	{
-		auto textureHandle = cache.instantiate<gfx::texture>(texture, context_handle);
+		auto textureHandle = cache.instantiate<gfx::texture_t>(texture, context_handle);
 		assert(textureHandle);
 	}
 }
 
-handle<core::data::material> setup_gfx_material_data(resource::cache& cache, handle<core::gfx::context> context_handle,
+handle<core::data::material_t> setup_gfx_material_data(resource::cache_t& cache,
+													   handle<core::gfx::context> context_handle,
 													 psl::UID vert, psl::UID frag, const psl::UID& texture)
 {
 	auto vertShaderMeta = cache.library().get<core::meta::shader>(vert).value();
@@ -226,11 +228,11 @@ handle<core::data::material> setup_gfx_material_data(resource::cache& cache, han
 	load_texture(cache, context_handle, texture);
 
 	// create the sampler
-	auto samplerData   = cache.create<data::sampler>();
-	auto samplerHandle = cache.create<gfx::sampler>(context_handle, samplerData);
+	auto samplerData   = cache.create<data::sampler_t>();
+	auto samplerHandle = cache.create<gfx::sampler_t>(context_handle, samplerData);
 
 	// load the example material
-	auto matData = cache.create<data::material>();
+	auto matData = cache.create<data::material_t>();
 
 	matData->from_shaders(cache.library(), {vertShaderMeta, fragShaderMeta});
 
@@ -250,29 +252,29 @@ handle<core::data::material> setup_gfx_material_data(resource::cache& cache, han
 		// binding.texture()
 	}
 	matData->stages(stages);
-	matData->blend_states({core::data::material::blendstate(0)});
+	matData->blend_states({core::data::material_t::blendstate(0)});
 	return matData;
 }
 
 
-handle<core::gfx::material> setup_gfx_material(resource::cache& cache, handle<core::gfx::context> context_handle,
+handle<core::gfx::material_t> setup_gfx_material(resource::cache_t& cache, handle<core::gfx::context> context_handle,
 											   handle<core::gfx::pipeline_cache> pipeline_cache,
-											   handle<core::gfx::buffer> matBuffer, psl::UID vert, psl::UID frag,
+												 handle<core::gfx::buffer_t> matBuffer, psl::UID vert, psl::UID frag,
 											   const psl::UID& texture)
 {
 	auto matData  = setup_gfx_material_data(cache, context_handle, vert, frag, texture);
-	auto material = cache.create<core::gfx::material>(context_handle, matData, pipeline_cache, matBuffer);
+	auto material = cache.create<core::gfx::material_t>(context_handle, matData, pipeline_cache, matBuffer);
 
 	return material;
 }
 
 void ui_icon() {}
 
-#include "ecs/systems/fly.h"
-#include "ecs/systems/geometry_instance.h"
+#include "ecs/systems/fly.hpp"
+#include "ecs/systems/geometry_instance.hpp"
 
-#include "ecs/components/camera.h"
-#include "ecs/components/input_tag.h"
+#include "ecs/components/camera.hpp"
+#include "ecs/components/input_tag.hpp"
 
 volatile bool should_exit = false;
 void launch_gassembler(graphics_backend backend)
@@ -288,7 +290,7 @@ void launch_gassembler(graphics_backend backend)
 	case graphics_backend::vulkan: environment = "vulkan"; break;
 	}
 
-	cache cache{psl::meta::library{psl::to_string8_t(libraryPath), {{environment}}}};
+	cache_t cache{psl::meta::library{psl::to_string8_t(libraryPath), {{environment}}}};
 
 	auto window_data = cache.instantiate<data::window>("cd61ad53-5ac8-41e9-a8a2-1d20b43376d9"_uid);
 	auto window_name = APPLICATION_FULL_NAME + " { " + environment + " }";
@@ -303,57 +305,61 @@ void launch_gassembler(graphics_backend backend)
 
 	auto context_handle = cache.create<core::gfx::context>(backend, psl::string8_t{APPLICATION_NAME});
 
-	auto swapchain_handle = cache.create<core::gfx::swapchain>(surface_handle, context_handle);
+	// this exists due to Android support.
+	/// \todo ideally this is passed into the entry function
+	auto os_context		  = core::os::context{};
+	auto swapchain_handle = cache.create<core::gfx::swapchain>(surface_handle, context_handle, os_context);
 
 	auto storage_buffer_align = context_handle->limits().storage.alignment;
 	auto uniform_buffer_align = context_handle->limits().uniform.alignment;
 	auto mapped_buffer_align  = context_handle->limits().memorymap.alignment;
 
 	// create a staging buffer, this is allows for more advantagous resource access for the GPU
-	core::resource::handle<gfx::buffer> stagingBuffer{};
+	core::resource::handle<gfx::buffer_t> stagingBuffer{};
 	if(backend == graphics_backend::vulkan)
 	{
-		auto stagingBufferData = cache.create<data::buffer>(
+		auto stagingBufferData = cache.create<data::buffer_t>(
 			core::gfx::memory_usage::transfer_source,
 			core::gfx::memory_property::host_visible | core::gfx::memory_property::host_coherent,
 			memory::region{(size_t)128_mb, 4, new memory::default_allocator(false)});
-		stagingBuffer = cache.create<gfx::buffer>(context_handle, stagingBufferData);
+		stagingBuffer = cache.create<gfx::buffer_t>(context_handle, stagingBufferData);
 	}
 
 	// create the buffers to store the model in
 	// - memory region which we'll use to track the allocations, this is supposed to be virtual as we don't care to
 	//   have a copy on the CPU
 	// - then we create the vulkan buffer resource to interface with the GPU
-	auto vertexBufferData = cache.create<data::buffer>(
+	auto vertexBufferData = cache.create<data::buffer_t>(
 		core::gfx::memory_usage::vertex_buffer | core::gfx::memory_usage::transfer_destination,
 		core::gfx::memory_property::device_local, memory::region{256_mb, 4, new memory::default_allocator(false)});
-	auto vertexBuffer = cache.create<gfx::buffer>(context_handle, vertexBufferData, stagingBuffer);
+	auto vertexBuffer = cache.create<gfx::buffer_t>(context_handle, vertexBufferData, stagingBuffer);
 
-	auto indexBufferData = cache.create<data::buffer>(
+	auto indexBufferData = cache.create<data::buffer_t>(
 		core::gfx::memory_usage::index_buffer | core::gfx::memory_usage::transfer_destination,
 		core::gfx::memory_property::device_local, memory::region{128_mb, 4, new memory::default_allocator(false)});
-	auto indexBuffer = cache.create<gfx::buffer>(context_handle, indexBufferData, stagingBuffer);
+	auto indexBuffer = cache.create<gfx::buffer_t>(context_handle, indexBufferData, stagingBuffer);
 
-	auto dynamicInstanceBufferData =
-		cache.create<data::buffer>(core::gfx::memory_usage::vertex_buffer,
+	auto dynamicInstanceBufferData = cache.create<data::buffer_t>(
+		core::gfx::memory_usage::vertex_buffer,
 								   core::gfx::memory_property::host_visible | core::gfx::memory_property::host_coherent,
 								   memory::region{128_mb, 4, new memory::default_allocator(false)});
 
 	// instance buffer for vertex data, these are unique per streamed instance of a geometry in a shader
-	auto instanceBufferData = cache.create<data::buffer>(
+	auto instanceBufferData = cache.create<data::buffer_t>(
 		core::gfx::memory_usage::vertex_buffer | core::gfx::memory_usage::transfer_destination,
 		core::gfx::memory_property::device_local, memory::region{128_mb, 4, new memory::default_allocator(false)});
-	auto instanceBuffer = cache.create<gfx::buffer>(context_handle, instanceBufferData, stagingBuffer);
+	auto instanceBuffer = cache.create<gfx::buffer_t>(context_handle, instanceBufferData, stagingBuffer);
 
 	// instance buffer for material data, these are shared over all instances of a given material bind (over all
 	// instances in the invocation)
-	auto instanceMaterialBufferData = cache.create<data::buffer>(
+	auto instanceMaterialBufferData = cache.create<data::buffer_t>(
 		core::gfx::memory_usage::uniform_buffer | core::gfx::memory_usage::transfer_destination,
 		core::gfx::memory_property::device_local,
 		memory::region{8_mb, uniform_buffer_align, new memory::default_allocator(false)});
-	auto instanceMaterialBuffer = cache.create<gfx::buffer>(context_handle, instanceMaterialBufferData, stagingBuffer);
+	auto instanceMaterialBuffer =
+		cache.create<gfx::buffer_t>(context_handle, instanceMaterialBufferData, stagingBuffer);
 	auto intanceMaterialBinding = cache.create<gfx::shader_buffer_binding>(instanceMaterialBuffer, 8_mb);
-	cache.library().set(intanceMaterialBinding.uid(), core::data::material::MATERIAL_DATA);
+	cache.library().set(intanceMaterialBinding.uid(), core::data::material_t::MATERIAL_DATA);
 
 
 	render_graph renderGraph{};
@@ -363,7 +369,7 @@ void launch_gassembler(graphics_backend backend)
 	using namespace core::ecs::components;
 	using namespace core::ecs::systems;
 	using namespace psl::ecs;
-	psl::ecs::state ECSState{};
+	psl::ecs::state_t ECSState{};
 	geometry_instancing geometry_instancing_system{ECSState};
 	fly fly_system{ECSState, surface_handle->input()};
 

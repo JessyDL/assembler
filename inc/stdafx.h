@@ -8,8 +8,8 @@
 #define NO_MIN_MAX
 #undef MIN
 #undef MAX
-#include "psl/string_utils.h"
-#include "psl/ustring.h"
+#include "psl/string_utils.hpp"
+#include "psl/ustring.hpp"
 
 #include "spdlog/logger.h"
 #include "spdlog/sinks/stdout_color_sinks.h"

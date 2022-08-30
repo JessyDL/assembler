@@ -1,10 +1,10 @@
 ﻿#include "generators/models.h"
 #include "cli/value.h"
-#include "psl/library.h"
+#include "psl/library.hpp"
 #include "psl/math/math.hpp"
-#include "psl/meta.h"
+#include "psl/meta.hpp"
 #include "psl/serialization/serializer.hpp"
-#include "psl/terminal_utils.h"
+#include "psl/terminal_utils.hpp"
 #include "stdafx.h"
 #include <iostream>
 #ifdef DBG_NEW
@@ -23,7 +23,7 @@
 #endif
 
 //#include "data/animation.h"
-#include "data/geometry.h"
+#include "data/geometry.hpp"
 //#include "data/skeleton.h"
 using namespace assembler::generators;
 using namespace core::data;
@@ -123,7 +123,7 @@ bool write_meta(T& data, psl::string output_file, const psl::string_view& extens
 
 bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 3> axis_setup, bool binary)
 {
-	geometry result;
+	geometry_t result;
 	typename std::decay<decltype(result.indices())>::type indices;
 
 
@@ -172,7 +172,7 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 						  pAIMesh->mVertices[ivert][axis_setup[2]]);
 		}
 
-		result.vertices(geometry::constants::POSITION, vec3_stream);
+		result.vertices(geometry_t::constants::POSITION, vec3_stream);
 	}
 	else
 	{
@@ -188,7 +188,7 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 											pAIMesh->mNormals[i][axis_setup[2]]));
 		}
 
-		result.vertices(geometry::constants::NORMAL, vec3_stream);
+		result.vertices(geometry_t::constants::NORMAL, vec3_stream);
 	}
 
 	if(pAIMesh->HasTangentsAndBitangents())
@@ -201,7 +201,7 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 										pAIMesh->mTangents[i][axis_setup[2]]));
 			}
 
-			result.vertices(geometry::constants::TANGENT, vec3_stream);
+			result.vertices(geometry_t::constants::TANGENT, vec3_stream);
 		}
 		{
 			for(unsigned int i = 0; i < nVertices; i++)
@@ -211,7 +211,7 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 										pAIMesh->mBitangents[i][axis_setup[2]]));
 			}
 
-			result.vertices(geometry::constants::BITANGENT, vec3_stream);
+			result.vertices(geometry_t::constants::BITANGENT, vec3_stream);
 		}
 	}
 
@@ -225,11 +225,11 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 			}
 
 			if(uvChannel > 1)
-				result.vertices(psl::string(geometry::constants::TEX) +
+				result.vertices(psl::string(geometry_t::constants::TEX) +
 									psl::from_string8_t(utility::to_string((uvChannel))),
 								vec2_stream);
 			else
-				result.vertices(geometry::constants::TEX, vec2_stream);
+				result.vertices(geometry_t::constants::TEX, vec2_stream);
 		}
 	}
 
@@ -244,10 +244,11 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 			}
 
 			if(c > 1)
-				result.vertices(psl::string(geometry::constants::COLOR) + psl::from_string8_t(utility::to_string((c))),
+				result.vertices(psl::string(geometry_t::constants::COLOR) +
+									psl::from_string8_t(utility::to_string((c))),
 								vec4_stream);
 			else
-				result.vertices(geometry::constants::COLOR, vec4_stream);
+				result.vertices(geometry_t::constants::COLOR, vec4_stream);
 		}
 	}
 
@@ -414,7 +415,7 @@ void models::on_invoke(cli::pack& pack)
 	std::function<void(size_t, aiNode&, std::unordered_map<size_t, psl::string>&)> recurse_log;
 	recurse_log = [&recurse_log](size_t depth, aiNode& node,
 								 std::unordered_map<size_t, psl::string>& meshNames) -> void {
-		assembler::log->info(psl::string(depth * 2, ' ') + node.mName.C_Str() + " meshes: {0}", node.mNumMeshes);
+		assembler::log->info(fmt::runtime(psl::string(depth * 2, ' ') + node.mName.C_Str() + " meshes: {0}"), node.mNumMeshes);
 		for(auto i = 0u; i < node.mNumMeshes; ++i)
 		{
 			meshNames[node.mMeshes[i]] = node.mName.C_Str();

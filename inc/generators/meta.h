@@ -1,12 +1,12 @@
 ﻿#pragma once
 #include "cli/value.h"
-#include "gles/conversion.h"
-#include "meta/shader.h"
-#include "meta/texture.h"
-#include "psl/array_view.h"
-#include "psl/library.h"
-#include "psl/meta.h"
-#include "psl/terminal_utils.h"
+#include "gles/conversion.hpp"
+#include "meta/shader.hpp"
+#include "meta/texture.hpp"
+#include "psl/array_view.hpp"
+#include "psl/library.hpp"
+#include "psl/meta.hpp"
+#include "psl/terminal_utils.hpp"
 #include "utils.h"
 #include <cstdint>
 
@@ -247,116 +247,116 @@ namespace utility::dds
 		return res;
 	}
 
-	inline core::gfx::format to_format(header header) noexcept
+	inline core::gfx::format_t to_format(header header) noexcept
 	{
 		using namespace core::gfx;
-		static const std::unordered_map<DXGI_FORMAT, core::gfx::format> lookup{
-			{DXGI_FORMAT::R32G32B32A32_TYPELESS, core::gfx::format::r32g32b32a32_uint},
-			{DXGI_FORMAT::R32G32B32A32_FLOAT, core::gfx::format::r32g32b32a32_sfloat},
-			{DXGI_FORMAT::R32G32B32A32_UINT, core::gfx::format::r32g32b32a32_uint},
-			{DXGI_FORMAT::R32G32B32A32_SINT, core::gfx::format::r32g32b32a32_sint},
-			{DXGI_FORMAT::R32G32B32_TYPELESS, core::gfx::format::r32g32b32_uint},
-			{DXGI_FORMAT::R32G32B32_FLOAT, core::gfx::format::r32g32b32_sfloat},
-			{DXGI_FORMAT::R32G32B32_UINT, core::gfx::format::r32g32b32_uint},
-			{DXGI_FORMAT::R32G32B32_SINT, core::gfx::format::r32g32b32_sint},
-			{DXGI_FORMAT::R16G16B16A16_TYPELESS, core::gfx::format::r16g16b16a16_unorm},
-			{DXGI_FORMAT::R16G16B16A16_FLOAT, core::gfx::format::r16g16b16a16_sfloat},
-			{DXGI_FORMAT::R16G16B16A16_UNORM, core::gfx::format::r16g16b16a16_unorm},
-			{DXGI_FORMAT::R16G16B16A16_UINT, core::gfx::format::r16g16b16a16_uint},
-			{DXGI_FORMAT::R16G16B16A16_SNORM, core::gfx::format::r16g16b16a16_snorm},
-			{DXGI_FORMAT::R16G16B16A16_SINT, core::gfx::format::r16g16b16a16_sint},
-			{DXGI_FORMAT::R32G32_TYPELESS, core::gfx::format::r32g32_uint},
-			{DXGI_FORMAT::R32G32_FLOAT, core::gfx::format::r32g32_sfloat},
-			{DXGI_FORMAT::R32G32_UINT, core::gfx::format::r32g32_uint},
-			{DXGI_FORMAT::R32G32_SINT, core::gfx::format::r32g32_sint},
-			{DXGI_FORMAT::R32G8X24_TYPELESS, core::gfx::format::undefined},
-			{DXGI_FORMAT::D32_FLOAT_S8X24_UINT, core::gfx::format::undefined},
-			{DXGI_FORMAT::R32_FLOAT_X8X24_TYPELESS, core::gfx::format::undefined},
-			{DXGI_FORMAT::X32_TYPELESS_G8X24_UINT, core::gfx::format::undefined},
-			{DXGI_FORMAT::R10G10B10A2_TYPELESS, core::gfx::format::a2b10g10r10_unorm_pack32},
-			{DXGI_FORMAT::R10G10B10A2_UNORM, core::gfx::format::a2b10g10r10_unorm_pack32},
-			{DXGI_FORMAT::R10G10B10A2_UINT, core::gfx::format::a2b10g10r10_uint_pack32},
-			{DXGI_FORMAT::R11G11B10_FLOAT, core::gfx::format::b10g11r11_ufloat_pack32},
-			{DXGI_FORMAT::R8G8B8A8_TYPELESS, core::gfx::format::r8g8b8a8_unorm},
-			{DXGI_FORMAT::R8G8B8A8_UNORM, core::gfx::format::r8g8b8a8_unorm},
-			{DXGI_FORMAT::R8G8B8A8_UNORM_SRGB, core::gfx::format::r8g8b8a8_srgb},
-			{DXGI_FORMAT::R8G8B8A8_UINT, core::gfx::format::r8g8b8a8_uint},
-			{DXGI_FORMAT::R8G8B8A8_SNORM, core::gfx::format::r8g8b8a8_snorm},
-			{DXGI_FORMAT::R8G8B8A8_SINT, core::gfx::format::r8g8b8a8_sint},
-			{DXGI_FORMAT::R16G16_TYPELESS, core::gfx::format::r16g16_unorm},
-			{DXGI_FORMAT::R16G16_FLOAT, core::gfx::format::r16g16_sfloat},
-			{DXGI_FORMAT::R16G16_UNORM, core::gfx::format::r16g16_unorm},
-			{DXGI_FORMAT::R16G16_UINT, core::gfx::format::r16g16_uint},
-			{DXGI_FORMAT::R16G16_SNORM, core::gfx::format::r16g16_snorm},
-			{DXGI_FORMAT::R16G16_SINT, core::gfx::format::r16g16_sint},
-			{DXGI_FORMAT::R32_TYPELESS, core::gfx::format::r32_uint},
-			{DXGI_FORMAT::D32_FLOAT, core::gfx::format::undefined},
-			{DXGI_FORMAT::R32_FLOAT, core::gfx::format::r32_sfloat},
-			{DXGI_FORMAT::R32_UINT, core::gfx::format::r32_uint},
-			{DXGI_FORMAT::R32_SINT, core::gfx::format::r32_sint},
-			{DXGI_FORMAT::R24G8_TYPELESS, core::gfx::format::undefined},
-			{DXGI_FORMAT::D24_UNORM_S8_UINT, core::gfx::format::undefined},
-			{DXGI_FORMAT::R24_UNORM_X8_TYPELESS, core::gfx::format::undefined},
-			{DXGI_FORMAT::X24_TYPELESS_G8_UINT, core::gfx::format::undefined},
-			{DXGI_FORMAT::R8G8_TYPELESS, core::gfx::format::r8g8_unorm},
-			{DXGI_FORMAT::R8G8_UNORM, core::gfx::format::r8g8_unorm},
-			{DXGI_FORMAT::R8G8_UINT, core::gfx::format::r8g8_uint},
-			{DXGI_FORMAT::R8G8_SNORM, core::gfx::format::r8g8_snorm},
-			{DXGI_FORMAT::R8G8_SINT, core::gfx::format::r8g8_sint},
-			{DXGI_FORMAT::R16_TYPELESS, core::gfx::format::r16_unorm},
-			{DXGI_FORMAT::R16_FLOAT, core::gfx::format::r16_sfloat},
-			{DXGI_FORMAT::D16_UNORM, core::gfx::format::undefined},
-			{DXGI_FORMAT::R16_UNORM, core::gfx::format::r16_unorm},
-			{DXGI_FORMAT::R16_UINT, core::gfx::format::r16_uint},
-			{DXGI_FORMAT::R16_SNORM, core::gfx::format::r16_snorm},
-			{DXGI_FORMAT::R16_SINT, core::gfx::format::r16_sint},
-			{DXGI_FORMAT::R8_TYPELESS, core::gfx::format::r8_unorm},
-			{DXGI_FORMAT::R8_UNORM, core::gfx::format::r8_unorm},
-			{DXGI_FORMAT::R8_UINT, core::gfx::format::r8_uint},
-			{DXGI_FORMAT::R8_SNORM, core::gfx::format::r8_snorm},
-			{DXGI_FORMAT::R8_SINT, core::gfx::format::r8_sint},
-			{DXGI_FORMAT::A8_UNORM, core::gfx::format::r8_unorm},
-			{DXGI_FORMAT::R9G9B9E5_SHAREDEXP, core::gfx::format::e5b9g9r9_ufloat_pack32},
-			//{DXGI_FORMAT::R8G8_B8G8_UNORM, core::gfx::format::b8g8r8g8_422_unorm_khr},
-			//{DXGI_FORMAT::G8R8_G8B8_UNORM, core::gfx::format::g8b8g8r8_422_unorm_khr},
-			{DXGI_FORMAT::BC1_TYPELESS, core::gfx::format::bc1_rgba_unorm_block},
-			{DXGI_FORMAT::BC1_UNORM, core::gfx::format::bc1_rgba_unorm_block},
-			{DXGI_FORMAT::BC1_UNORM_SRGB, core::gfx::format::bc1_rgba_srgb_block},
-			{DXGI_FORMAT::BC2_TYPELESS, core::gfx::format::bc2_unorm_block},
-			{DXGI_FORMAT::BC2_UNORM, core::gfx::format::bc2_unorm_block},
-			{DXGI_FORMAT::BC2_UNORM_SRGB, core::gfx::format::bc2_srgb_block},
-			{DXGI_FORMAT::BC3_TYPELESS, core::gfx::format::bc3_unorm_block},
-			{DXGI_FORMAT::BC3_UNORM, core::gfx::format::bc3_unorm_block},
-			{DXGI_FORMAT::BC3_UNORM_SRGB, core::gfx::format::bc3_srgb_block},
-			{DXGI_FORMAT::BC4_TYPELESS, core::gfx::format::bc4_unorm_block},
-			{DXGI_FORMAT::BC4_UNORM, core::gfx::format::bc4_unorm_block},
-			{DXGI_FORMAT::BC4_SNORM, core::gfx::format::bc4_snorm_block},
-			{DXGI_FORMAT::BC5_TYPELESS, core::gfx::format::bc5_unorm_block},
-			{DXGI_FORMAT::BC5_UNORM, core::gfx::format::bc5_unorm_block},
-			{DXGI_FORMAT::BC5_SNORM, core::gfx::format::bc5_snorm_block},
-			{DXGI_FORMAT::B5G6R5_UNORM, core::gfx::format::r5g6b5_unorm_pack16},
-			{DXGI_FORMAT::B5G5R5A1_UNORM, core::gfx::format::a1r5g5b5_unorm_pack16},
-			{DXGI_FORMAT::B8G8R8A8_UNORM, core::gfx::format::b8g8r8a8_unorm},
-			{DXGI_FORMAT::B8G8R8X8_UNORM, core::gfx::format::b8g8r8a8_unorm},
-			{DXGI_FORMAT::B8G8R8A8_TYPELESS, core::gfx::format::b8g8r8a8_unorm},
-			{DXGI_FORMAT::B8G8R8A8_UNORM_SRGB, core::gfx::format::b8g8r8a8_srgb},
-			{DXGI_FORMAT::B8G8R8X8_TYPELESS, core::gfx::format::b8g8r8a8_unorm},
-			{DXGI_FORMAT::B8G8R8X8_UNORM_SRGB, core::gfx::format::b8g8r8a8_srgb},
-			{DXGI_FORMAT::BC6H_TYPELESS, core::gfx::format::bc6h_ufloat_block},
-			{DXGI_FORMAT::BC6H_UF16, core::gfx::format::bc6h_ufloat_block},
-			{DXGI_FORMAT::BC6H_SF16, core::gfx::format::bc6h_sfloat_block},
-			{DXGI_FORMAT::BC7_TYPELESS, core::gfx::format::bc7_unorm_block},
-			{DXGI_FORMAT::BC7_UNORM, core::gfx::format::bc7_unorm_block},
-			{DXGI_FORMAT::B4G4R4A4_UNORM, core::gfx::format::b4g4r4a4_unorm_pack16}};
+		static const std::unordered_map<DXGI_FORMAT, core::gfx::format_t> lookup{
+			{DXGI_FORMAT::R32G32B32A32_TYPELESS, core::gfx::format_t::r32g32b32a32_uint},
+			{DXGI_FORMAT::R32G32B32A32_FLOAT, core::gfx::format_t::r32g32b32a32_sfloat},
+			{DXGI_FORMAT::R32G32B32A32_UINT, core::gfx::format_t::r32g32b32a32_uint},
+			{DXGI_FORMAT::R32G32B32A32_SINT, core::gfx::format_t::r32g32b32a32_sint},
+			{DXGI_FORMAT::R32G32B32_TYPELESS, core::gfx::format_t::r32g32b32_uint},
+			{DXGI_FORMAT::R32G32B32_FLOAT, core::gfx::format_t::r32g32b32_sfloat},
+			{DXGI_FORMAT::R32G32B32_UINT, core::gfx::format_t::r32g32b32_uint},
+			{DXGI_FORMAT::R32G32B32_SINT, core::gfx::format_t::r32g32b32_sint},
+			{DXGI_FORMAT::R16G16B16A16_TYPELESS, core::gfx::format_t::r16g16b16a16_unorm},
+			{DXGI_FORMAT::R16G16B16A16_FLOAT, core::gfx::format_t::r16g16b16a16_sfloat},
+			{DXGI_FORMAT::R16G16B16A16_UNORM, core::gfx::format_t::r16g16b16a16_unorm},
+			{DXGI_FORMAT::R16G16B16A16_UINT, core::gfx::format_t::r16g16b16a16_uint},
+			{DXGI_FORMAT::R16G16B16A16_SNORM, core::gfx::format_t::r16g16b16a16_snorm},
+			{DXGI_FORMAT::R16G16B16A16_SINT, core::gfx::format_t::r16g16b16a16_sint},
+			{DXGI_FORMAT::R32G32_TYPELESS, core::gfx::format_t::r32g32_uint},
+			{DXGI_FORMAT::R32G32_FLOAT, core::gfx::format_t::r32g32_sfloat},
+			{DXGI_FORMAT::R32G32_UINT, core::gfx::format_t::r32g32_uint},
+			{DXGI_FORMAT::R32G32_SINT, core::gfx::format_t::r32g32_sint},
+			{DXGI_FORMAT::R32G8X24_TYPELESS, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::D32_FLOAT_S8X24_UINT, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::R32_FLOAT_X8X24_TYPELESS, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::X32_TYPELESS_G8X24_UINT, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::R10G10B10A2_TYPELESS, core::gfx::format_t::a2b10g10r10_unorm_pack32},
+			{DXGI_FORMAT::R10G10B10A2_UNORM, core::gfx::format_t::a2b10g10r10_unorm_pack32},
+			{DXGI_FORMAT::R10G10B10A2_UINT, core::gfx::format_t::a2b10g10r10_uint_pack32},
+			{DXGI_FORMAT::R11G11B10_FLOAT, core::gfx::format_t::b10g11r11_ufloat_pack32},
+			{DXGI_FORMAT::R8G8B8A8_TYPELESS, core::gfx::format_t::r8g8b8a8_unorm},
+			{DXGI_FORMAT::R8G8B8A8_UNORM, core::gfx::format_t::r8g8b8a8_unorm},
+			{DXGI_FORMAT::R8G8B8A8_UNORM_SRGB, core::gfx::format_t::r8g8b8a8_srgb},
+			{DXGI_FORMAT::R8G8B8A8_UINT, core::gfx::format_t::r8g8b8a8_uint},
+			{DXGI_FORMAT::R8G8B8A8_SNORM, core::gfx::format_t::r8g8b8a8_snorm},
+			{DXGI_FORMAT::R8G8B8A8_SINT, core::gfx::format_t::r8g8b8a8_sint},
+			{DXGI_FORMAT::R16G16_TYPELESS, core::gfx::format_t::r16g16_unorm},
+			{DXGI_FORMAT::R16G16_FLOAT, core::gfx::format_t::r16g16_sfloat},
+			{DXGI_FORMAT::R16G16_UNORM, core::gfx::format_t::r16g16_unorm},
+			{DXGI_FORMAT::R16G16_UINT, core::gfx::format_t::r16g16_uint},
+			{DXGI_FORMAT::R16G16_SNORM, core::gfx::format_t::r16g16_snorm},
+			{DXGI_FORMAT::R16G16_SINT, core::gfx::format_t::r16g16_sint},
+			{DXGI_FORMAT::R32_TYPELESS, core::gfx::format_t::r32_uint},
+			{DXGI_FORMAT::D32_FLOAT, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::R32_FLOAT, core::gfx::format_t::r32_sfloat},
+			{DXGI_FORMAT::R32_UINT, core::gfx::format_t::r32_uint},
+			{DXGI_FORMAT::R32_SINT, core::gfx::format_t::r32_sint},
+			{DXGI_FORMAT::R24G8_TYPELESS, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::D24_UNORM_S8_UINT, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::R24_UNORM_X8_TYPELESS, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::X24_TYPELESS_G8_UINT, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::R8G8_TYPELESS, core::gfx::format_t::r8g8_unorm},
+			{DXGI_FORMAT::R8G8_UNORM, core::gfx::format_t::r8g8_unorm},
+			{DXGI_FORMAT::R8G8_UINT, core::gfx::format_t::r8g8_uint},
+			{DXGI_FORMAT::R8G8_SNORM, core::gfx::format_t::r8g8_snorm},
+			{DXGI_FORMAT::R8G8_SINT, core::gfx::format_t::r8g8_sint},
+			{DXGI_FORMAT::R16_TYPELESS, core::gfx::format_t::r16_unorm},
+			{DXGI_FORMAT::R16_FLOAT, core::gfx::format_t::r16_sfloat},
+			{DXGI_FORMAT::D16_UNORM, core::gfx::format_t::undefined},
+			{DXGI_FORMAT::R16_UNORM, core::gfx::format_t::r16_unorm},
+			{DXGI_FORMAT::R16_UINT, core::gfx::format_t::r16_uint},
+			{DXGI_FORMAT::R16_SNORM, core::gfx::format_t::r16_snorm},
+			{DXGI_FORMAT::R16_SINT, core::gfx::format_t::r16_sint},
+			{DXGI_FORMAT::R8_TYPELESS, core::gfx::format_t::r8_unorm},
+			{DXGI_FORMAT::R8_UNORM, core::gfx::format_t::r8_unorm},
+			{DXGI_FORMAT::R8_UINT, core::gfx::format_t::r8_uint},
+			{DXGI_FORMAT::R8_SNORM, core::gfx::format_t::r8_snorm},
+			{DXGI_FORMAT::R8_SINT, core::gfx::format_t::r8_sint},
+			{DXGI_FORMAT::A8_UNORM, core::gfx::format_t::r8_unorm},
+			{DXGI_FORMAT::R9G9B9E5_SHAREDEXP, core::gfx::format_t::e5b9g9r9_ufloat_pack32},
+			//{DXGI_FORMAT::R8G8_B8G8_UNORM, core::gfx::format_t::b8g8r8g8_422_unorm_khr},
+			//{DXGI_FORMAT::G8R8_G8B8_UNORM, core::gfx::format_t::g8b8g8r8_422_unorm_khr},
+			{DXGI_FORMAT::BC1_TYPELESS, core::gfx::format_t::bc1_rgba_unorm_block},
+			{DXGI_FORMAT::BC1_UNORM, core::gfx::format_t::bc1_rgba_unorm_block},
+			{DXGI_FORMAT::BC1_UNORM_SRGB, core::gfx::format_t::bc1_rgba_srgb_block},
+			{DXGI_FORMAT::BC2_TYPELESS, core::gfx::format_t::bc2_unorm_block},
+			{DXGI_FORMAT::BC2_UNORM, core::gfx::format_t::bc2_unorm_block},
+			{DXGI_FORMAT::BC2_UNORM_SRGB, core::gfx::format_t::bc2_srgb_block},
+			{DXGI_FORMAT::BC3_TYPELESS, core::gfx::format_t::bc3_unorm_block},
+			{DXGI_FORMAT::BC3_UNORM, core::gfx::format_t::bc3_unorm_block},
+			{DXGI_FORMAT::BC3_UNORM_SRGB, core::gfx::format_t::bc3_srgb_block},
+			{DXGI_FORMAT::BC4_TYPELESS, core::gfx::format_t::bc4_unorm_block},
+			{DXGI_FORMAT::BC4_UNORM, core::gfx::format_t::bc4_unorm_block},
+			{DXGI_FORMAT::BC4_SNORM, core::gfx::format_t::bc4_snorm_block},
+			{DXGI_FORMAT::BC5_TYPELESS, core::gfx::format_t::bc5_unorm_block},
+			{DXGI_FORMAT::BC5_UNORM, core::gfx::format_t::bc5_unorm_block},
+			{DXGI_FORMAT::BC5_SNORM, core::gfx::format_t::bc5_snorm_block},
+			{DXGI_FORMAT::B5G6R5_UNORM, core::gfx::format_t::r5g6b5_unorm_pack16},
+			{DXGI_FORMAT::B5G5R5A1_UNORM, core::gfx::format_t::a1r5g5b5_unorm_pack16},
+			{DXGI_FORMAT::B8G8R8A8_UNORM, core::gfx::format_t::b8g8r8a8_unorm},
+			{DXGI_FORMAT::B8G8R8X8_UNORM, core::gfx::format_t::b8g8r8a8_unorm},
+			{DXGI_FORMAT::B8G8R8A8_TYPELESS, core::gfx::format_t::b8g8r8a8_unorm},
+			{DXGI_FORMAT::B8G8R8A8_UNORM_SRGB, core::gfx::format_t::b8g8r8a8_srgb},
+			{DXGI_FORMAT::B8G8R8X8_TYPELESS, core::gfx::format_t::b8g8r8a8_unorm},
+			{DXGI_FORMAT::B8G8R8X8_UNORM_SRGB, core::gfx::format_t::b8g8r8a8_srgb},
+			{DXGI_FORMAT::BC6H_TYPELESS, core::gfx::format_t::bc6h_ufloat_block},
+			{DXGI_FORMAT::BC6H_UF16, core::gfx::format_t::bc6h_ufloat_block},
+			{DXGI_FORMAT::BC6H_SF16, core::gfx::format_t::bc6h_sfloat_block},
+			{DXGI_FORMAT::BC7_TYPELESS, core::gfx::format_t::bc7_unorm_block},
+			{DXGI_FORMAT::BC7_UNORM, core::gfx::format_t::bc7_unorm_block},
+			{DXGI_FORMAT::B4G4R4A4_UNORM, core::gfx::format_t::b4g4r4a4_unorm_pack16}};
 		if(header.ddspf.dwFourCC != (uint32_t)('D') + (uint32_t)('X') + (uint32_t)('1') + (uint32_t)('0'))
 		{
 			switch((dds_dxt_flag)header.ddspf.dwFourCC)
 			{
-			case dds_dxt_flag::DXT1: return core::gfx::format::bc1_rgba_unorm_block; break;
-			case dds_dxt_flag::DXT2: return core::gfx::format::bc1_rgba_unorm_block; break;
-			case dds_dxt_flag::DXT3: return core::gfx::format::bc2_unorm_block; break;
-			case dds_dxt_flag::DXT4: return core::gfx::format::bc3_unorm_block; break;
-			case dds_dxt_flag::DXT5: return core::gfx::format::bc3_unorm_block; break;
+			case dds_dxt_flag::DXT1: return core::gfx::format_t::bc1_rgba_unorm_block; break;
+			case dds_dxt_flag::DXT2: return core::gfx::format_t::bc1_rgba_unorm_block; break;
+			case dds_dxt_flag::DXT3: return core::gfx::format_t::bc2_unorm_block; break;
+			case dds_dxt_flag::DXT4: return core::gfx::format_t::bc3_unorm_block; break;
+			case dds_dxt_flag::DXT5: return core::gfx::format_t::bc3_unorm_block; break;
 			default:
 			{
 			}
@@ -365,7 +365,7 @@ namespace utility::dds
 		else
 			return lookup.at(header.dxgiFormat);
 
-		return core::gfx::format::undefined;
+		return core::gfx::format_t::undefined;
 	}
 }
 namespace utility::ktx
@@ -780,26 +780,26 @@ namespace assembler::generators
 						{
 							auto header =
 								utility::ktx::decode(psl::array_view<std::byte>((std::byte*)data.data(), data.size()));
-							core::meta::texture* texture_meta = reinterpret_cast<core::meta::texture*>(target);
+							core::meta::texture_t* texture_meta = reinterpret_cast<core::meta::texture_t*>(target);
 							texture_meta->width(header.pixelWidth);
 							texture_meta->height(header.pixelHeight);
 							texture_meta->depth(header.pixelDepth);
 							texture_meta->mip_levels(header.numberOfMipmapLevels);
 							texture_meta->format(core::gfx::conversion::to_format(header.glInternalFormat,
 																				  header.glFormat, header.glType));
-							assert_debug_break(texture_meta->format() != core::gfx::format::undefined);
+							psl_assert(texture_meta->format() != core::gfx::format_t::undefined);
 						}
 						else if(utility::dds::is_dds(view))
 						{
 							auto header =
 								utility::dds::decode(psl::array_view<std::byte>((std::byte*)data.data(), data.size()));
-							core::meta::texture* texture_meta = reinterpret_cast<core::meta::texture*>(target);
+							core::meta::texture_t* texture_meta = reinterpret_cast<core::meta::texture_t*>(target);
 							texture_meta->width(header.dwWidth);
 							texture_meta->height(header.dwHeight);
 							texture_meta->depth(header.dwDepth);
 							texture_meta->mip_levels(header.dwMipMapCount);
 							texture_meta->format(utility::dds::to_format(header));
-							// assert_debug_break(texture_meta->format() != core::gfx::format::undefined);
+							// assert_debug_break(texture_meta->format() != core::gfx::format_t::undefined);
 						}
 					}
 					break;

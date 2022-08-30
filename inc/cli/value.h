@@ -2,11 +2,11 @@
 #define NO_MIN_MAX
 #undef MIN
 #undef MAX
-#include "psl/array.h"
-#include "psl/memory/region.h"
-#include "psl/static_array.h"
-#include "psl/string_utils.h"
-#include "psl/ustring.h"
+#include "psl/array.hpp"
+#include "psl/memory/region.hpp"
+#include "psl/static_array.hpp"
+#include "psl/string_utils.hpp"
+#include "psl/ustring.hpp"
 #include "stdafx.h"
 #include <iostream>
 #include <memory>

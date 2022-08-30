@@ -1,9 +1,9 @@
 ﻿#pragma once
-#include "psl/string_utils.h"
+#include "psl/string_utils.hpp"
 #include "cli/value.h"
-#include "psl/terminal_utils.h"
+#include "psl/terminal_utils.hpp"
 #include <set>
-#include "psl/timer.h"
+#include "psl/timer.hpp"
 
 namespace assembler
 {

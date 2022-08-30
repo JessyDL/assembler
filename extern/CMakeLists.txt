@@ -1,0 +1,16 @@
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+set(CMAKE_CXX_CLANG_TIDY "")
+
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+add_subdirectory(json)
+
+add_subdirectory(assimp)
+
+set(BUILD_SHARED_LIBS OFF)
+set(ENABLE_GLSLANG_BINARIES ON)
+set(ENABLE_HLSL OFF)
+set(ENABLE_CTEST OFF CACHE INTERNAL "" FORCE)
+add_subdirectory(glslang)
+
+set(SPIRV_CROSS_ENABLE_TESTS OFF CACHE INTERNAL "" FORCE)
+add_subdirectory(SPIRV-Cross)

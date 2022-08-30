@@ -1,59 +1,59 @@
 ﻿#include "glslang_utils.h"
 #include "nlohmann/json.hpp"
-#include "psl/meta.h"
-#include "psl/platform_utils.h"
+#include "psl/meta.hpp"
+#include "psl/platform_utils.hpp"
 #include "stdafx.h"
 #include <iostream>
 #include <stdlib.h>
 
-#include "gfx/types.h"
-#include "psl/array.h"
-#include "psl/array_view.h"
-#include "psl/library.h"
+#include "gfx/types.hpp"
+#include "psl/array.hpp"
+#include "psl/array_view.hpp"
+#include "psl/library.hpp"
 #include "psl/serialization/serializer.hpp"
-#include "psl/ustring.h"
+#include "psl/ustring.hpp"
 
-#include "meta/shader.h"
-#include "data/material.h"
+#include "meta/shader.hpp"
+#include "data/material.hpp"
 
 struct typeinfo
 {
 	uint32_t count;			  // how many elements
 	uint32_t stride;		  // how big ever element is
-	core::gfx::format format; // the expected format;
+	core::gfx::format_t format; // the expected format;
 };
 
 std::unordered_map<psl::string, typeinfo> m_TypeToInfo{
-	{"vec4", {1, 16, core::gfx::format::r32g32b32a32_sfloat}},
-	{"vec3", {1, 12, core::gfx::format::r32g32b32_sfloat}},
-	{"vec2", {1, 8, core::gfx::format::r32g32_sfloat}},
-	{"float", {1, 4, core::gfx::format::r32_sfloat}},
-	{"mat4", {4, 16, core::gfx::format::r32g32b32a32_sfloat}},
-	{"mat4x4", {4, 16, core::gfx::format::r32g32b32a32_sfloat}},
-	{"mat4x3", {3, 16, core::gfx::format::r32g32b32a32_sfloat}},
-	{"mat4x2", {2, 16, core::gfx::format::r32g32b32a32_sfloat}},
-	{"mat4x1", {1, 16, core::gfx::format::r32g32b32a32_sfloat}},
-	{"mat3", {3, 12, core::gfx::format::r32g32b32_sfloat}},
-	{"mat3x4", {4, 12, core::gfx::format::r32g32b32_sfloat}},
-	{"mat3x3", {3, 12, core::gfx::format::r32g32b32_sfloat}},
-	{"mat3x2", {2, 12, core::gfx::format::r32g32b32_sfloat}},
-	{"mat3x1", {1, 12, core::gfx::format::r32g32b32_sfloat}},
-	{"mat2", {2, 8, core::gfx::format::r32g32_sfloat}},
-	{"mat2x4", {4, 8, core::gfx::format::r32g32_sfloat}},
-	{"mat2x3", {3, 8, core::gfx::format::r32g32_sfloat}},
-	{"mat2x2", {2, 8, core::gfx::format::r32g32_sfloat}},
-	{"mat2x1", {1, 8, core::gfx::format::r32g32_sfloat}},
+	{"vec4", {1, 16, core::gfx::format_t::r32g32b32a32_sfloat}},
+	{"vec3", {1, 12, core::gfx::format_t::r32g32b32_sfloat}},
+	{"vec2", {1, 8, core::gfx::format_t::r32g32_sfloat}},
+	{"float", {1, 4, core::gfx::format_t::r32_sfloat}},
+	{"mat4", {4, 16, core::gfx::format_t::r32g32b32a32_sfloat}},
+	{"mat4x4", {4, 16, core::gfx::format_t::r32g32b32a32_sfloat}},
+	{"mat4x3", {3, 16, core::gfx::format_t::r32g32b32a32_sfloat}},
+	{"mat4x2", {2, 16, core::gfx::format_t::r32g32b32a32_sfloat}},
+	{"mat4x1", {1, 16, core::gfx::format_t::r32g32b32a32_sfloat}},
+	{"mat3", {3, 12, core::gfx::format_t::r32g32b32_sfloat}},
+	{"mat3x4", {4, 12, core::gfx::format_t::r32g32b32_sfloat}},
+	{"mat3x3", {3, 12, core::gfx::format_t::r32g32b32_sfloat}},
+	{"mat3x2", {2, 12, core::gfx::format_t::r32g32b32_sfloat}},
+	{"mat3x1", {1, 12, core::gfx::format_t::r32g32b32_sfloat}},
+	{"mat2", {2, 8, core::gfx::format_t::r32g32_sfloat}},
+	{"mat2x4", {4, 8, core::gfx::format_t::r32g32_sfloat}},
+	{"mat2x3", {3, 8, core::gfx::format_t::r32g32_sfloat}},
+	{"mat2x2", {2, 8, core::gfx::format_t::r32g32_sfloat}},
+	{"mat2x1", {1, 8, core::gfx::format_t::r32g32_sfloat}},
 
-	{"bool", {1, 1, core::gfx::format::undefined}},
-	{"int", {1, 4, core::gfx::format::r32_sint}},
-	{"uint", {1, 4, core::gfx::format::r32_uint}},
-	{"double", {1, 8, core::gfx::format::undefined}},
+	{"bool", {1, 1, core::gfx::format_t::undefined}},
+	{"int", {1, 4, core::gfx::format_t::r32_sint}},
+	{"uint", {1, 4, core::gfx::format_t::r32_uint}},
+	{"double", {1, 8, core::gfx::format_t::undefined}},
 
-	{"mat1x4", {1, 4, core::gfx::format::r32_sfloat}},
-	{"mat1x3", {1, 4, core::gfx::format::r32_sfloat}},
-	{"mat1x2", {1, 4, core::gfx::format::r32_sfloat}},
-	{"mat1x1", {1, 4, core::gfx::format::r32_sfloat}},
-	{"mat1", {1, 4, core::gfx::format::r32_sfloat}},
+	{"mat1x4", {1, 4, core::gfx::format_t::r32_sfloat}},
+	{"mat1x3", {1, 4, core::gfx::format_t::r32_sfloat}},
+	{"mat1x2", {1, 4, core::gfx::format_t::r32_sfloat}},
+	{"mat1x1", {1, 4, core::gfx::format_t::r32_sfloat}},
+	{"mat1", {1, 4, core::gfx::format_t::r32_sfloat}},
 };
 
 using namespace tools;
@@ -240,7 +240,7 @@ bool glslang::compile(psl::string_view compiler_location, psl::string_view sourc
 		descr.name(value["name"]);
 		descr.qualifier(shader::descriptor::dependency::in);
 		descr.type(utility::string::contains(descr.name(), "_DYNAMIC_") ? core::gfx::binding_type::uniform_buffer_dynamic : core::gfx::binding_type::uniform_buffer);
-		if (descr.name() == core::data::material::MATERIAL_DATA)
+		if (descr.name() == core::data::material_t::MATERIAL_DATA)
 		{
 			descr.type(core::gfx::binding_type::uniform_buffer_dynamic);
 		}

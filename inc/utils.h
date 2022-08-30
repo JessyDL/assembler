@@ -1,7 +1,7 @@
 #pragma once
-#include "psl/array.h"
-#include "psl/ustring.h"
-#include "psl/platform_utils.h"
+#include "psl/array.hpp"
+#include "psl/ustring.hpp"
+#include "psl/platform_utils.hpp"
 
 namespace assembler
 {

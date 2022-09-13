@@ -55,18 +55,41 @@ BOOL CtrlHandler(DWORD fdwCtrlType)
 }
 #endif
 
-static psl::string_view get_input()
+psl::string_view get_input(int argc, char* argv[])
 {
 	static psl::pstring_t input(4096, ('\0'));
+	static bool firstRun = true;
 	std::memset(input.data(), ('\0'), sizeof(psl::platform::char_t) * input.size());
+
+	if(!firstRun)
+	{
+#if defined(WIN32) && defined(UNICODE)
+		std::wcin.getline(input.data(), input.size() - 1);
+#else
+		std::cin.getline(input.data(), input.size() - 1);
+#endif
+	}
+	else
+	{
+		firstRun	  = false;
+		size_t offset = 0;
+		const auto space = psl::to_pstring(psl::string8::view(" "));
+		for(auto i = 1; i < argc; ++i)
+		{
+			auto str = psl::to_pstring(psl::string8::view(argv[i]));
+			std::memcpy(input.data() + offset, str.data(), str.size() * sizeof(psl::pchar_t));
+			offset += str.size();
+			std::memcpy(input.data() + offset, space.data(), space.size() * sizeof(psl::pchar_t));
+			offset += space.size();
+		}
+	}
+
 #if defined(WIN32) && defined(UNICODE)
 	static psl::string storage(8192, ('\0'));
-	std::wcin.getline(input.data(), input.size() - 1);
 	auto intermediate = psl::to_string8_t(psl::platform::view(input.data(), std::wcslen(input.data())));
 	std::memcpy(storage.data(), intermediate.data(), intermediate.size());
 	return {storage.data(), intermediate.size()};
 #else
-	std::cin.getline(input.data(), input.size() - 1);
 	return {input.data(), psl::strlen(input.data())};
 #endif
 }
@@ -78,8 +101,8 @@ static psl::string_view get_input()
 #include "data/buffer.hpp"
 #include "data/material.hpp"
 #include "data/window.hpp"
-#include "os/surface.hpp"
 #include "os/context.hpp"
+#include "os/surface.hpp"
 
 #include "gfx/buffer.hpp"
 #include "gfx/computepass.hpp"
@@ -219,8 +242,8 @@ void load_texture(resource::cache_t& cache, handle<core::gfx::context> context_h
 }
 
 handle<core::data::material_t> setup_gfx_material_data(resource::cache_t& cache,
-													   handle<core::gfx::context> context_handle,
-													 psl::UID vert, psl::UID frag, const psl::UID& texture)
+													   handle<core::gfx::context> context_handle, psl::UID vert,
+													   psl::UID frag, const psl::UID& texture)
 {
 	auto vertShaderMeta = cache.library().get<core::meta::shader>(vert).value();
 	auto fragShaderMeta = cache.library().get<core::meta::shader>(frag).value();
@@ -258,9 +281,9 @@ handle<core::data::material_t> setup_gfx_material_data(resource::cache_t& cache,
 
 
 handle<core::gfx::material_t> setup_gfx_material(resource::cache_t& cache, handle<core::gfx::context> context_handle,
-											   handle<core::gfx::pipeline_cache> pipeline_cache,
+												 handle<core::gfx::pipeline_cache> pipeline_cache,
 												 handle<core::gfx::buffer_t> matBuffer, psl::UID vert, psl::UID frag,
-											   const psl::UID& texture)
+												 const psl::UID& texture)
 {
 	auto matData  = setup_gfx_material_data(cache, context_handle, vert, frag, texture);
 	auto material = cache.create<core::gfx::material_t>(context_handle, matData, pipeline_cache, matBuffer);
@@ -341,8 +364,8 @@ void launch_gassembler(graphics_backend backend)
 
 	auto dynamicInstanceBufferData = cache.create<data::buffer_t>(
 		core::gfx::memory_usage::vertex_buffer,
-								   core::gfx::memory_property::host_visible | core::gfx::memory_property::host_coherent,
-								   memory::region{128_mb, 4, new memory::default_allocator(false)});
+		core::gfx::memory_property::host_visible | core::gfx::memory_property::host_coherent,
+		memory::region{128_mb, 4, new memory::default_allocator(false)});
 
 	// instance buffer for vertex data, these are unique per streamed instance of a geometry in a shader
 	auto instanceBufferData = cache.create<data::buffer_t>(
@@ -476,11 +499,6 @@ int main(int argc, char* argv[])
 
 	};
 
-	psl::array<psl::string_view> commands;
-	for(auto i = 1; i < argc; ++i) commands.emplace_back(argv[i]);
-	if(!commands.empty()) root.parse(commands);
-
-
 	std::thread geditor_thread;
 
 
@@ -499,8 +517,24 @@ int main(int argc, char* argv[])
 				assembler::log->error("ERROR: a graphical editor is already running");
 			}
 		}
-		psl::array<psl::string_view> commands = utility::string::split(get_input(), ("|"));
-		root.parse(commands);
+		psl::array<psl::string_view> commands = utility::string::split(get_input(argc, argv), ("|"));
+		try
+		{
+			root.parse(commands);
+		}
+		catch(const std::runtime_error& re)
+		{
+			std::cerr << "Runtime error: " << re.what() << std::endl;
+		}
+		catch(const std::exception& ex)
+		{
+			std::cerr << "Exception occurred: " << ex.what() << std::endl;
+		}
+		catch(...)
+		{
+			std::cerr << "Unknown failure occurred. Exiting the app" << std::endl;
+			break;
+		}
 	}
 	should_exit = true;
 	if(geditor_thread.joinable()) geditor_thread.join();

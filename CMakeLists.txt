@@ -13,8 +13,9 @@ endif()
 # -------------------------------------------------------------------------------------------------
 
 # required call to get the paradigm engine core here, and setting up the compile defines
-SET (BUILD_SHARED_LIBS OFF)
-set (PE_TESTS OFF CACHE INTERNAL "" FORCE)
+set(BUILD_SHARED_LIBS OFF)
+set(PE_TESTS OFF CACHE INTERNAL "" FORCE)
+set(PE_MAKE_EXE OFF)
 add_subdirectory(paradigm)
 
 get_directory_property(PE_COMPILE_OPTIONS DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS)

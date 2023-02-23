@@ -4,7 +4,7 @@
 
 #include "stdafx.h"
 
-std::shared_ptr<spdlog::logger> assembler::log{nullptr};
+std::shared_ptr<spdlog::logger> assembler::log {nullptr};
 
 // TODO: reference any additional headers you need in STDAFX.H
 // and not in this file

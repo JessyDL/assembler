@@ -8,7 +8,7 @@
 #include "stdafx.h"
 #include <iostream>
 #ifdef DBG_NEW
-#undef new
+	#undef new
 #endif
 
 #include "assimp/DefaultLogger.hpp"
@@ -19,7 +19,7 @@
 #include "assimp\scene.h"
 
 #ifdef DBG_NEW
-#define new DBG_NEW
+	#define new DBG_NEW
 #endif
 
 //#include "data/animation.h"
@@ -34,56 +34,62 @@ using cli_value = psl::cli::value<T>;
 using namespace psl;
 
 constexpr psl::string_view MODEL_FORMAT		= "pgf";
-constexpr psl::string_view SKELETON_FORMAT  = "psf";
+constexpr psl::string_view SKELETON_FORMAT	= "psf";
 constexpr psl::string_view ANIMATION_FORMAT = "paf";
 
-models::models()
-{
-	m_Pack = psl::cli::pack{std::bind(&assembler::generators::models::on_invoke, this, std::placeholders::_1),
-							cli_value<psl::string>{"input", "location of the input file", {"input", "i"}, "", false},
-							cli_value<psl::string>{"output", "location of the output file", {"output", "o"}, "", true},
-							cli_value<bool>{"tangents", "generate tangent information", {"tangents", "t"}, true},
-							cli_value<bool>{"normals", "generate normal information", {"normals", "n"}, true},
-							cli_value<bool>{"snormals", "generate smooth normal information", {"snormals", "s"}, true},
-							cli_value<bool>{"uvs", "generate uv information", {"uvs"}, true},
-							cli_value<bool>{"optimize", "optimize the mesh", {"optimize", "O"}, true},
-							cli_value<bool>{"LH", "left handed coordinate system", {"LH"}, true},
-							cli_value<bool>{"fuvs", "flip uv coorinates", {"fuvs"}, false},
-							cli_value<bool>{"fwinding", "flip triangle winding", {"fwinding"}, false},
-							cli_value<bool>{"flatten", "", {"flatten", "f"}, false},
-							cli_value<psl::string>{"axis", "what should be left, up, and forward?", {"axis"}, "xzy"},
-							cli_value<bool>{"sparse_skeleton", "compress the skeleton information", {"sparse"}, true},
-							cli_value<bool>{"binary", "outputs the file in binary form", {"bin", "b"}, false}};
+models::models() {
+	m_Pack =
+	  psl::cli::pack {std::bind(&assembler::generators::models::on_invoke, this, std::placeholders::_1),
+					  cli_value<psl::string> {"input", "location of the input file", {"input", "i"}, "", false},
+					  cli_value<psl::string> {"output", "location of the output file", {"output", "o"}, "", true},
+					  cli_value<bool> {"tangents", "generate tangent information", {"tangents", "t"}, true},
+					  cli_value<bool> {"normals", "generate normal information", {"normals", "n"}, true},
+					  cli_value<bool> {"snormals", "generate smooth normal information", {"snormals", "s"}, true},
+					  cli_value<bool> {"uvs", "generate uv information", {"uvs"}, true},
+					  cli_value<bool> {"optimize", "optimize the mesh", {"optimize", "O"}, true},
+					  cli_value<bool> {"LH", "left handed coordinate system", {"LH"}, true},
+					  cli_value<bool> {"fuvs", "flip uv coorinates", {"fuvs"}, false},
+					  cli_value<bool> {"fwinding", "flip triangle winding", {"fwinding"}, false},
+					  cli_value<bool> {"flatten", "", {"flatten", "f"}, false},
+					  cli_value<psl::string> {"axis", "what should be left, up, and forward?", {"axis"}, "xzy"},
+					  cli_value<bool> {"sparse_skeleton", "compress the skeleton information", {"sparse"}, true},
+					  cli_value<bool> {"binary", "outputs the file in binary form", {"bin", "b"}, false}};
 }
 
-bool proccess_flags(cli::pack& pack, unsigned int& flags)
-{
+bool proccess_flags(cli::pack& pack, unsigned int& flags) {
 	flags = aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType |
 			aiProcess_ValidateDataStructure | aiProcess_OptimizeGraph;
 
-	if(pack["tangents"]->as<bool>().get()) flags |= aiProcess_CalcTangentSpace;
-	if(pack["snormals"]->as<bool>().get()) flags |= aiProcess_GenSmoothNormals;
-	if(pack["normals"]->as<bool>().get() && !pack["snormals"]->as<bool>().get()) flags |= aiProcess_GenNormals;
-	if(pack["uvs"]->as<bool>().get()) flags |= aiProcess_GenUVCoords;
-	if(pack["optimize"]->as<bool>().get()) flags |= aiProcess_OptimizeMeshes;
-	if(pack["LH"]->as<bool>().get()) flags |= aiProcess_MakeLeftHanded;
-	if(pack["fuvs"]->as<bool>().get()) flags |= aiProcess_FlipUVs;
-	if(pack["fwinding"]->as<bool>().get()) flags |= aiProcess_FlipWindingOrder;
-	if(pack["flatten"]->as<bool>().get()) flags |= aiProcess_JoinIdenticalVertices;
+	if(pack["tangents"]->as<bool>().get())
+		flags |= aiProcess_CalcTangentSpace;
+	if(pack["snormals"]->as<bool>().get())
+		flags |= aiProcess_GenSmoothNormals;
+	if(pack["normals"]->as<bool>().get() && !pack["snormals"]->as<bool>().get())
+		flags |= aiProcess_GenNormals;
+	if(pack["uvs"]->as<bool>().get())
+		flags |= aiProcess_GenUVCoords;
+	if(pack["optimize"]->as<bool>().get())
+		flags |= aiProcess_OptimizeMeshes;
+	if(pack["LH"]->as<bool>().get())
+		flags |= aiProcess_MakeLeftHanded;
+	if(pack["fuvs"]->as<bool>().get())
+		flags |= aiProcess_FlipUVs;
+	if(pack["fwinding"]->as<bool>().get())
+		flags |= aiProcess_FlipWindingOrder;
+	if(pack["flatten"]->as<bool>().get())
+		flags |= aiProcess_JoinIdenticalVertices;
 
 
 	return true;
 }
 
 template <typename T>
-bool write_meta(T& data, psl::string output_file, const psl::string_view& extension, bool binary)
-{
-	format::container cont{};
-	format::settings settings{};
-	if(binary)
-	{
+bool write_meta(T& data, psl::string output_file, psl::string_view const& extension, bool binary) {
+	format::container cont {};
+	format::settings settings {};
+	if(binary) {
 		settings.compact_string = true;
-		settings.binary_value   = true;
+		settings.binary_value	= true;
 	}
 	cont.set_settings(settings);
 	serialization::serializer s;
@@ -92,28 +98,25 @@ bool write_meta(T& data, psl::string output_file, const psl::string_view& extens
 	output_file += "." + extension;
 	auto output_meta = output_file + "." + psl::from_string8_t(meta::META_EXTENSION);
 
-	if(!utility::platform::file::write(output_file, cont.to_string()))
-	{
+	if(!utility::platform::file::write(output_file, cont.to_string())) {
 		assembler::log->error("could not write the output file.");
 		return false;
 	}
 
 	{
 		UID uid = UID::generate();
-		if(utility::platform::file::exists(output_meta))
-		{
+		if(utility::platform::file::exists(output_meta)) {
 			::meta::file* original = nullptr;
 			serialization::serializer temp_s;
 			temp_s.deserialize<serialization::decode_from_format>(original, output_meta);
 			uid = original->ID();
 		}
 
-		meta::file metaFile{uid};
-		cont = format::container{};
+		meta::file metaFile {uid};
+		cont = format::container {};
 
 		s.serialize<serialization::encode_to_format>(metaFile, cont);
-		if(!utility::platform::file::write(output_meta, cont.to_string()))
-		{
+		if(!utility::platform::file::write(output_meta, cont.to_string())) {
 			assembler::log->error("could not write the output file.");
 			return false;
 		}
@@ -121,41 +124,36 @@ bool write_meta(T& data, psl::string output_file, const psl::string_view& extens
 	return true;
 }
 
-bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 3> axis_setup, bool binary)
-{
+bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 3> axis_setup, bool binary) {
 	geometry_t result;
 	typename std::decay<decltype(result.indices())>::type indices;
 
 
-	unsigned int nVertices{pAIMesh->mNumVertices};
+	unsigned int nVertices {pAIMesh->mNumVertices};
 
-	if(pAIMesh->HasFaces())
-	{
+	if(pAIMesh->HasFaces()) {
 		aiFace* pAIFaces;
 		pAIFaces			  = pAIMesh->mFaces;
 		unsigned int nIndices = pAIMesh->mNumFaces * 3;
 		indices.resize(nIndices);
 
-		for(unsigned int iface = 0; iface < pAIMesh->mNumFaces; iface++)
-		{
-			if(pAIFaces[iface].mNumIndices != 3)
-			{
+		for(unsigned int iface = 0; iface < pAIMesh->mNumFaces; iface++) {
+			if(pAIFaces[iface].mNumIndices != 3) {
 				assembler::log->error(
-					"the model has an incorrect number vertices per face. only 3 vertices per face allowed.");
+				  "the model has an incorrect number vertices per face. only 3 vertices per face allowed.");
 				return false;
 			}
 
-			for(uint32_t j = 0; j < 3; j++)
-			{
+			for(uint32_t j = 0; j < 3; j++) {
 				indices[iface * 3 + j] = pAIFaces[iface].mIndices[j];
 			}
 		}
 
 		result.indices(indices);
 	}
-	core::stream vec4_stream{core::stream::type::vec4};
-	core::stream vec3_stream{core::stream::type::vec3};
-	core::stream vec2_stream{core::stream::type::vec2};
+	core::stream vec4_stream {core::stream::type::vec4};
+	core::stream vec3_stream {core::stream::type::vec3};
+	core::stream vec2_stream {core::stream::type::vec2};
 	std::vector<psl::vec4>& datav4 = vec4_stream.as_vec4().value();
 	std::vector<psl::vec3>& datav3 = vec3_stream.as_vec3().value();
 	std::vector<psl::vec2>& datav2 = vec2_stream.as_vec2().value();
@@ -163,89 +161,77 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 	datav3.resize(nVertices);
 	datav2.resize(nVertices);
 
-	if(pAIMesh->HasPositions())
-	{
-		for(unsigned int ivert = 0; ivert < nVertices; ivert++)
-		{
-			datav3[ivert] =
-				psl::vec3(pAIMesh->mVertices[ivert][axis_setup[0]], pAIMesh->mVertices[ivert][axis_setup[1]],
-						  pAIMesh->mVertices[ivert][axis_setup[2]]);
+	if(pAIMesh->HasPositions()) {
+		for(unsigned int ivert = 0; ivert < nVertices; ivert++) {
+			datav3[ivert] = psl::vec3(pAIMesh->mVertices[ivert][axis_setup[0]],
+									  pAIMesh->mVertices[ivert][axis_setup[1]],
+									  pAIMesh->mVertices[ivert][axis_setup[2]]);
 		}
 
 		result.vertices(geometry_t::constants::POSITION, vec3_stream);
-	}
-	else
-	{
+	} else {
 		assembler::log->error("the model has no position data.");
 		return false;
 	}
 
-	if(pAIMesh->HasNormals())
-	{
-		for(unsigned int i = 0; i < nVertices; i++)
-		{
-			datav3[i] = normalize(psl::vec3(pAIMesh->mNormals[i][axis_setup[0]], pAIMesh->mNormals[i][axis_setup[1]],
+	if(pAIMesh->HasNormals()) {
+		for(unsigned int i = 0; i < nVertices; i++) {
+			datav3[i] = normalize(psl::vec3(pAIMesh->mNormals[i][axis_setup[0]],
+											pAIMesh->mNormals[i][axis_setup[1]],
 											pAIMesh->mNormals[i][axis_setup[2]]));
 		}
 
 		result.vertices(geometry_t::constants::NORMAL, vec3_stream);
 	}
 
-	if(pAIMesh->HasTangentsAndBitangents())
-	{
+	if(pAIMesh->HasTangentsAndBitangents()) {
 		{
-			for(unsigned int i = 0; i < nVertices; i++)
-			{
-				datav3[i] =
-					normalize(psl::vec3(pAIMesh->mTangents[i][axis_setup[0]], pAIMesh->mTangents[i][axis_setup[1]],
-										pAIMesh->mTangents[i][axis_setup[2]]));
+			for(unsigned int i = 0; i < nVertices; i++) {
+				datav3[i] = normalize(psl::vec3(pAIMesh->mTangents[i][axis_setup[0]],
+												pAIMesh->mTangents[i][axis_setup[1]],
+												pAIMesh->mTangents[i][axis_setup[2]]));
 			}
 
 			result.vertices(geometry_t::constants::TANGENT, vec3_stream);
 		}
 		{
-			for(unsigned int i = 0; i < nVertices; i++)
-			{
-				datav3[i] =
-					normalize(psl::vec3(pAIMesh->mBitangents[i][axis_setup[0]], pAIMesh->mBitangents[i][axis_setup[1]],
-										pAIMesh->mBitangents[i][axis_setup[2]]));
+			for(unsigned int i = 0; i < nVertices; i++) {
+				datav3[i] = normalize(psl::vec3(pAIMesh->mBitangents[i][axis_setup[0]],
+												pAIMesh->mBitangents[i][axis_setup[1]],
+												pAIMesh->mBitangents[i][axis_setup[2]]));
 			}
 
 			result.vertices(geometry_t::constants::BITANGENT, vec3_stream);
 		}
 	}
 
-	for(uint32_t uvChannel = 0; uvChannel < pAIMesh->GetNumUVChannels(); ++uvChannel)
-	{
-		if(pAIMesh->HasTextureCoords(uvChannel))
-		{
-			for(unsigned int i = 0; i < nVertices; i++)
-			{
+	for(uint32_t uvChannel = 0; uvChannel < pAIMesh->GetNumUVChannels(); ++uvChannel) {
+		if(pAIMesh->HasTextureCoords(uvChannel)) {
+			for(unsigned int i = 0; i < nVertices; i++) {
 				datav2[i] = psl::vec2(pAIMesh->mTextureCoords[uvChannel][i].x, pAIMesh->mTextureCoords[uvChannel][i].y);
 			}
 
 			if(uvChannel > 1)
 				result.vertices(psl::string(geometry_t::constants::TEX) +
-									psl::from_string8_t(utility::to_string((uvChannel))),
+								  psl::from_string8_t(utility::to_string((uvChannel))),
 								vec2_stream);
 			else
 				result.vertices(geometry_t::constants::TEX, vec2_stream);
 		}
 	}
 
-	for(unsigned int c = 0; c < pAIMesh->GetNumColorChannels(); ++c)
-	{
-		if(pAIMesh->HasVertexColors(c))
-		{
-			for(unsigned int i = 0; i < nVertices; i++)
-			{
-				datav4[i] = psl::vec4(pAIMesh->mColors[c][i].r, pAIMesh->mColors[c][i].g, pAIMesh->mColors[c][i].b,
+	for(unsigned int c = 0; c < pAIMesh->GetNumColorChannels(); ++c) {
+		if(pAIMesh->HasVertexColors(c)) {
+			for(unsigned int i = 0; i < nVertices; i++) {
+				datav4[i] = psl::vec4(pAIMesh->mColors[c][i].r,
+									  pAIMesh->mColors[c][i].g,
+									  pAIMesh->mColors[c][i].b,
 									  pAIMesh->mColors[c][i].a);
 			}
 
 			if(c > 1)
 				result.vertices(psl::string(geometry_t::constants::COLOR) +
-									psl::from_string8_t(utility::to_string((c))),
+								  psl::from_string8_t(utility::to_string((c))),
 								vec4_stream);
 			else
 				result.vertices(geometry_t::constants::COLOR, vec4_stream);
@@ -256,14 +242,26 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 }
 
 template <typename T>
-psl::mat4x4 convert(const aiMatrix4x4t<T>& source)
-{
-	return mat4x4{source.a1, source.a2, source.a3, source.a4, source.b1, source.b2, source.b3, source.b4,
-				  source.c1, source.c2, source.c3, source.c4, source.d1, source.d2, source.d3, source.d4};
+psl::mat4x4 convert(aiMatrix4x4t<T> const& source) {
+	return mat4x4 {source.a1,
+				   source.a2,
+				   source.a3,
+				   source.a4,
+				   source.b1,
+				   source.b2,
+				   source.b3,
+				   source.b4,
+				   source.c1,
+				   source.c2,
+				   source.c3,
+				   source.c4,
+				   source.d1,
+				   source.d2,
+				   source.d3,
+				   source.d4};
 }
 
-bool import_skeleton(aiMesh* pAIMesh, psl::string output_file, bool binary)
-{
+bool import_skeleton(aiMesh* pAIMesh, psl::string output_file, bool binary) {
 	throw std::runtime_error("not implemented");
 	return false;
 
@@ -296,8 +294,7 @@ bool import_skeleton(aiMesh* pAIMesh, psl::string output_file, bool binary)
 	return write_meta(skeleton, std::move(output_file), SKELETON_FORMAT, binary);*/
 }
 
-bool import_animation(const aiAnimation& aiAnim, psl::string output_file, bool binary)
-{
+bool import_animation(aiAnimation const& aiAnim, psl::string output_file, bool binary) {
 	throw std::runtime_error("not implemented");
 	return false;
 	/*
@@ -320,21 +317,19 @@ bool import_animation(const aiAnimation& aiAnim, psl::string output_file, bool b
 	*/
 }
 
-void models::on_invoke(cli::pack& pack)
-{
+void models::on_invoke(cli::pack& pack) {
 	// --generate --geometry -i "C:\Projects\data_old\Models\Cerberus.FBX"
 	// --generate --geometry -i "C:\Projects\data_old\Models\Translate.FBX"
 	// --generate --models -i "/c/Projects/github/example_data/source/models/mech_drone/scene.gltf"
 	std::array<uint8_t, 3> axis_setup;
 	{
 		auto axis = pack["axis"]->as<psl::string>().get();
-		if(axis.size() != 3)
-		{
+		if(axis.size() != 3) {
 			utility::terminal::set_color(utility::terminal::color::RED);
 			assembler::log->error(
-				"you provided an invalid axis, you should enter three letters, and the only accepted values are 'x', "
-				"'y', and 'z'. You provided {}",
-				axis);
+			  "you provided an invalid axis, you should enter three letters, and the only accepted values are 'x', "
+			  "'y', and 'z'. You provided {}",
+			  axis);
 			utility::terminal::set_color(utility::terminal::color::WHITE);
 			return;
 		}
@@ -342,30 +337,22 @@ void models::on_invoke(cli::pack& pack)
 		bool xSet = false;
 		bool ySet = false;
 		bool zSet = false;
-		for(uint8_t i = 0; i < 3; ++i)
-		{
-			if(axis[i] == ('x') && !xSet)
-			{
+		for(uint8_t i = 0; i < 3; ++i) {
+			if(axis[i] == ('x') && !xSet) {
 				xSet		  = true;
 				axis_setup[i] = 0;
-			}
-			else if(axis[i] == ('y') && !ySet)
-			{
+			} else if(axis[i] == ('y') && !ySet) {
 				ySet		  = true;
 				axis_setup[i] = 1;
-			}
-			else if(axis[i] == ('z') && !zSet)
-			{
+			} else if(axis[i] == ('z') && !zSet) {
 				zSet		  = true;
 				axis_setup[i] = 2;
-			}
-			else
-			{
+			} else {
 				utility::terminal::set_color(utility::terminal::color::RED);
 				assembler::log->error(
-					"You provided an invalid axis, the accepted values are 'x', 'y', and 'z', and no duplicates.\nYou "
-					"entered: {}",
-					axis);
+				  "You provided an invalid axis, the accepted values are 'x', 'y', and 'z', and no duplicates.\nYou "
+				  "entered: {}",
+				  axis);
 				utility::terminal::set_color(utility::terminal::color::WHITE);
 				return;
 			}
@@ -381,27 +368,25 @@ void models::on_invoke(cli::pack& pack)
 
 
 	unsigned int flags = 0u;
-	if(!proccess_flags(pack, flags)) return;
+	if(!proccess_flags(pack, flags))
+		return;
 
-	if(!utility::platform::file::exists(input_file))
-	{
+	if(!utility::platform::file::exists(input_file)) {
 		utility::terminal::set_color(utility::terminal::color::RED);
 		assembler::log->error("the file '{}' does not exist", input_file);
 		utility::terminal::set_color(utility::terminal::color::WHITE);
 		return;
 	}
 
-	if(input_file == output_file || output_file.empty())
-	{
+	if(input_file == output_file || output_file.empty()) {
 		output_file = input_file.substr(0, input_file.find_last_of(('.')));
 	}
-	input_file  = utility::platform::directory::to_platform(input_file);
+	input_file	= utility::platform::directory::to_platform(input_file);
 	output_file = utility::platform::directory::to_unix(output_file);
 
-	const aiScene* pScene = importer.ReadFile(psl::to_string8_t(input_file), flags);
+	aiScene const* pScene = importer.ReadFile(psl::to_string8_t(input_file), flags);
 	psl::string errorMessage;
-	if(!pScene)
-	{
+	if(!pScene) {
 		utility::terminal::set_color(utility::terminal::color::RED);
 		assembler::log->error("the scene of the file '{0}' could not be loaded by assimp", input_file);
 		assembler::log->error(importer.GetErrorString());
@@ -413,25 +398,24 @@ void models::on_invoke(cli::pack& pack)
 
 	auto& root = *pScene->mRootNode;
 	std::function<void(size_t, aiNode&, std::unordered_map<size_t, psl::string>&)> recurse_log;
-	recurse_log = [&recurse_log](size_t depth, aiNode& node,
-								 std::unordered_map<size_t, psl::string>& meshNames) -> void {
-		assembler::log->info(fmt::runtime(psl::string(depth * 2, ' ') + node.mName.C_Str() + " meshes: {0}"), node.mNumMeshes);
-		for(auto i = 0u; i < node.mNumMeshes; ++i)
-		{
+	recurse_log =
+	  [&recurse_log](size_t depth, aiNode& node, std::unordered_map<size_t, psl::string>& meshNames) -> void {
+		assembler::log->info(fmt::runtime(psl::string(depth * 2, ' ') + node.mName.C_Str() + " meshes: {0}"),
+							 node.mNumMeshes);
+		for(auto i = 0u; i < node.mNumMeshes; ++i) {
 			meshNames[node.mMeshes[i]] = node.mName.C_Str();
 		}
-		for(auto i = 0u; i < node.mNumChildren; ++i)
-		{
+		for(auto i = 0u; i < node.mNumChildren; ++i) {
 			std::invoke(recurse_log, depth + 1, *node.mChildren[i], meshNames);
 		}
 	};
 
 	recurse_log(0, root, meshNames);
 
-	for(unsigned int m = 0; m < pScene->mNumMeshes; ++m)
-	{
+	for(unsigned int m = 0; m < pScene->mNumMeshes; ++m) {
 		auto output_appendage = (pScene->mNumMeshes > 1) ? "_" + std::to_string(m) : "";
-		if(!output_appendage.empty() && m < 10) output_appendage.insert(1, "0");
+		if(!output_appendage.empty() && m < 10)
+			output_appendage.insert(1, "0");
 
 		output_appendage = (pScene->mNumMeshes > 1) ? "_" + meshNames[m] : "";
 		if(!import_model(pScene->mMeshes[m], output_file + output_appendage, axis_setup, encode_to_binary) ||
@@ -440,10 +424,10 @@ void models::on_invoke(cli::pack& pack)
 	}
 
 
-	for(auto i = 0u; i < pScene->mNumAnimations; ++i)
-	{
+	for(auto i = 0u; i < pScene->mNumAnimations; ++i) {
 		auto& animation = *pScene->mAnimations[i];
-		if(!import_animation(animation, output_file, encode_to_binary)) goto error;
+		if(!import_animation(animation, output_file, encode_to_binary))
+			goto error;
 	}
 
 	importer.FreeScene();

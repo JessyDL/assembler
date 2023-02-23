@@ -14,9 +14,8 @@
 #include "spdlog/logger.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
-namespace assembler
-{
-	extern std::shared_ptr<spdlog::logger> log;
+namespace assembler {
+extern std::shared_ptr<spdlog::logger> log;
 }
 
 // TODO: reference additional headers your program requires here

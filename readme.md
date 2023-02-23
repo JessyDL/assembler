@@ -3,8 +3,10 @@
 The `assembler` project is a Command Line Interface tool to manipulate and generate various data structures that the engine can consume. Using `assembler` you can compile `shaders` that generates their companion [core::meta::shaders](https://jessydl.github.io/paradigm/classcore_1_1meta_1_1shader.html), import models using  [assimp v4.1.0](https://github.com/assimp/assimp/releases/tag/v4.1.0/), setup a [meta::library](https://jessydl.github.io/paradigm/classmeta_1_1library.html), generate [meta::file](https://jessydl.github.io/paradigm/classmeta_1_1file.html)s, and more. 
 
 ## Prerequisites
-To use `assembler` on Windows, Bash on Ubuntu on Windows should be installed.
 [CMake ]( http://cmake.org/) 3.11 or higher is required on all platforms.
+
+Transitive requirements from dependencies (particularly `paradigm`'s dependencies)
+
 ## Building
 Note that the `paradigm` submodule heavily influences the building of the project.
 

@@ -1,37 +1,40 @@
 ---
+Language: Cpp
+Standard: Latest
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: true
 AlignOperands: true
 AlignTrailingComments: true
-AllowAllParametersOfDeclarationOnNextLine: true
-AllowShortCaseLabelsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: true
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: true
 AlwaysBreakBeforeMultilineStrings: true
 AlwaysBreakTemplateDeclarations: true
-BinPackArguments: true
-BinPackParameters: true
+BinPackArguments: false
+BinPackParameters: false
 BraceWrapping:
-  AfterEnum: true
-  AfterStruct: true
-  AfterClass: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterUnion: true
-  BeforeCatch: true
-  BeforeElse: true
+  AfterCaseLabel: false
+  AfterEnum: false
+  AfterStruct: false
+  AfterClass: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterUnion: false
+  BeforeCatch: false
+  BeforeElse: false
   IndentBraces: false
   SplitEmptyFunction: false
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
-  AfterControlStatement: true
+  AfterControlStatement: false
 ColumnLimit: 120
 BreakBeforeBraces: Custom
 Cpp11BracedListStyle: true
-DerivePointerAlignment: true
+DerivePointerAlignment: false
 MaxEmptyLinesToKeep: 2
-NamespaceIndentation: All
+NamespaceIndentation: Inner
 SpaceAfterCStyleCast: false
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeParens: Never
@@ -45,4 +48,26 @@ IndentWidth: 4
 TabWidth: 4
 UseTab: Always
 SortIncludes: true
+SpacesBeforeTrailingComments: 4
+SpaceBeforeInheritanceColon: true
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeCpp11BracedList: true
+SpaceAfterTemplateKeyword: true
+SortUsingDeclarations: true
+PointerAlignment: Left
+KeepEmptyLinesAtTheStartOfBlocks: false
+FixNamespaceComments: true
+ContinuationIndentWidth: 2
+BreakStringLiterals: true
+BreakInheritanceList: BeforeColon
+BreakConstructorInitializers: BeforeColon
+BreakBeforeTernaryOperators: true
+AllowShortBlocksOnASingleLine: false
+SpaceBeforeRangeBasedForLoopColon: true
+CommentPragmas:  '.* \\(param|tparam|brief|detail|details|return|returns|note|warning|todo)'
+# EmptyLineBeforeAccessModifier: LogicalBlock
+# IndentRequires: true
+# BreakBeforeConceptDeclarations: true
+IndentPPDirectives: BeforeHash
+QualifierAlignment: Right
 ...

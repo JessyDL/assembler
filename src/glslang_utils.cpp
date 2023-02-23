@@ -13,8 +13,8 @@
 #include "psl/serialization/serializer.hpp"
 #include "psl/ustring.hpp"
 
-#include "data/material.hpp"
-#include "meta/shader.hpp"
+#include "core/data/material.hpp"
+#include "core/meta/shader.hpp"
 
 struct typeinfo {
 	uint32_t count;				   // how many elements

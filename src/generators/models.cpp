@@ -151,12 +151,12 @@ bool import_model(aiMesh* pAIMesh, psl::string output_file, std::array<uint8_t, 
 
 		result.indices(indices);
 	}
-	core::stream vec4_stream {core::stream::type::vec4};
-	core::stream vec3_stream {core::stream::type::vec3};
-	core::stream vec2_stream {core::stream::type::vec2};
-	std::vector<psl::vec4>& datav4 = vec4_stream.as_vec4().value();
-	std::vector<psl::vec3>& datav3 = vec3_stream.as_vec3().value();
-	std::vector<psl::vec2>& datav2 = vec2_stream.as_vec2().value();
+	core::vertex_stream_t vec4_stream {core::vertex_stream_t::type::vec4};
+	core::vertex_stream_t vec3_stream {core::vertex_stream_t::type::vec3};
+	core::vertex_stream_t vec2_stream {core::vertex_stream_t::type::vec2};
+	std::vector<psl::vec4>& datav4 = vec4_stream.get<core::vertex_stream_t::type::vec4>();
+	std::vector<psl::vec3>& datav3 = vec3_stream.get<core::vertex_stream_t::type::vec3>();
+	std::vector<psl::vec2>& datav2 = vec2_stream.get<core::vertex_stream_t::type::vec2>();
 	datav4.resize(nVertices);
 	datav3.resize(nVertices);
 	datav2.resize(nVertices);

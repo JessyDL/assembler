@@ -6,15 +6,15 @@
 #include <iostream>
 #include <stdlib.h>
 
-#include "gfx/types.hpp"
+#include "core/gfx/types.hpp"
 #include "psl/array.hpp"
 #include "psl/array_view.hpp"
 #include "psl/library.hpp"
 #include "psl/serialization/serializer.hpp"
 #include "psl/ustring.hpp"
 
-#include "data/material.hpp"
-#include "meta/shader.hpp"
+#include "core/data/material.hpp"
+#include "core/meta/shader.hpp"
 
 struct typeinfo {
 	uint32_t count;				   // how many elements

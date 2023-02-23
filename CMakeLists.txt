@@ -53,7 +53,7 @@ add_executable(${LOCAL_PROJECT} ${INC} ${SRC} ${GENERATOR_INFORMATION} ${NATVIS}
 set_property(TARGET ${LOCAL_PROJECT} PROPERTY FOLDER "tools")
 add_dependencies(${LOCAL_PROJECT} glslang)
 target_link_libraries(${LOCAL_PROJECT} PUBLIC 
-	${PROJECT_PSL} ${PE_DL_LIBS} ${PROJECT_CORE} assimp nlohmann_json)
+	${PE_DL_LIBS} psl core assimp nlohmann_json)
 
 target_include_directories(${LOCAL_PROJECT}
 	PUBLIC 

@@ -1,14 +1,15 @@
 ﻿#pragma once
 #include "cli/value.h"
-#include "gles/conversion.hpp"
-#include "meta/shader.hpp"
-#include "meta/texture.hpp"
+#include "core/gles/conversion.hpp"
+#include "core/meta/shader.hpp"
+#include "core/meta/texture.hpp"
 #include "psl/array_view.hpp"
 #include "psl/library.hpp"
 #include "psl/meta.hpp"
 #include "psl/terminal_utils.hpp"
 #include "utils.h"
 #include <cstdint>
+#include <filesystem>
 
 namespace utility::dds {
 constexpr uint32_t identifier {0x20534444};

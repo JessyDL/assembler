@@ -18,7 +18,7 @@
 #include "generators/models.h"
 #include "generators/shader.h"
 
-#include "resource/cache.hpp"
+#include "core/resource/cache.hpp"
 
 #include "psl/collections/spmc.hpp"
 
@@ -93,26 +93,26 @@ psl::string_view get_input(int argc, char* argv[]) {
 #endif
 }
 
-#include "paradigm.hpp"
+#include "core/paradigm.hpp"
 #include "psl/application_utils.hpp"
 #include "psl/literals.hpp"
 
-#include "data/buffer.hpp"
-#include "data/material.hpp"
-#include "data/window.hpp"
-#include "os/context.hpp"
-#include "os/surface.hpp"
+#include "core/data/buffer.hpp"
+#include "core/data/material.hpp"
+#include "core/data/window.hpp"
+#include "core/os/context.hpp"
+#include "core/os/surface.hpp"
 
-#include "gfx/buffer.hpp"
-#include "gfx/computepass.hpp"
-#include "gfx/context.hpp"
-#include "gfx/drawpass.hpp"
-#include "gfx/material.hpp"
-#include "gfx/render_graph.hpp"
-#include "gfx/swapchain.hpp"
+#include "core/gfx/buffer.hpp"
+#include "core/gfx/computepass.hpp"
+#include "core/gfx/context.hpp"
+#include "core/gfx/drawpass.hpp"
+#include "core/gfx/material.hpp"
+#include "core/gfx/render_graph.hpp"
+#include "core/gfx/swapchain.hpp"
 
 
-#include "logging.hpp"
+#include "core/logging.hpp"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/dist_sink.h"
 #ifdef _MSC_VER
@@ -226,9 +226,9 @@ std::atomic<graphics_backend> gBackend {graphics_backend::undefined};
 
 using namespace core;
 
-#include "data/sampler.hpp"
-#include "gfx/sampler.hpp"
-#include "gfx/texture.hpp"
+#include "core/data/sampler.hpp"
+#include "core/gfx/sampler.hpp"
+#include "core/gfx/texture.hpp"
 
 void load_texture(resource::cache_t& cache, handle<core::gfx::context> context_handle, psl::UID const& texture) {
 	if(!cache.contains(texture)) {
@@ -292,11 +292,11 @@ handle<core::gfx::material_t> setup_gfx_material(resource::cache_t& cache,
 
 void ui_icon() {}
 
-#include "ecs/systems/fly.hpp"
-#include "ecs/systems/geometry_instance.hpp"
+#include "core/ecs/systems/fly.hpp"
+#include "core/ecs/systems/geometry_instance.hpp"
 
-#include "ecs/components/camera.hpp"
-#include "ecs/components/input_tag.hpp"
+#include "core/ecs/components/camera.hpp"
+#include "core/ecs/components/input_tag.hpp"
 
 bool volatile should_exit = false;
 void launch_gassembler(graphics_backend backend) {

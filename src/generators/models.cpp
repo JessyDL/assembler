@@ -23,7 +23,7 @@
 #endif
 
 //#include "data/animation.h"
-#include "data/geometry.hpp"
+#include "core/data/geometry.hpp"
 //#include "data/skeleton.h"
 using namespace assembler::generators;
 using namespace core::data;

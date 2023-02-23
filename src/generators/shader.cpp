@@ -1,5 +1,5 @@
 ﻿#include "generators/shader.h"
-#include "gfx/types.hpp"
+#include "core/gfx/types.hpp"
 #include "glslang_utils.h"
 #include "psl/application_utils.hpp"
 #include "psl/library.hpp"

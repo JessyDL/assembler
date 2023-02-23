@@ -6,7 +6,7 @@
 #include <iostream>
 #include <stdlib.h>
 
-#include "gfx/types.hpp"
+#include "core/gfx/types.hpp"
 #include "psl/array.hpp"
 #include "psl/array_view.hpp"
 #include "psl/library.hpp"

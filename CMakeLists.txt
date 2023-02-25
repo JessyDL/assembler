@@ -21,13 +21,7 @@ add_subdirectory(paradigm)
 get_directory_property(PE_COMPILE_OPTIONS DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS)
 get_directory_property(PE_COMPILE_OPTIONS_EXE DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS_EXE)
 get_directory_property(PE_COMPILER_FEATURES DIRECTORY paradigm DEFINITION PE_COMPILER_FEATURES)
-get_directory_property(PE_DL_LIBS DIRECTORY paradigm DEFINITION PE_DL_LIBS)
-get_directory_property(PROJECT_PSL DIRECTORY paradigm DEFINITION PROJECT_PSL)
-get_directory_property(PROJECT_CORE DIRECTORY paradigm DEFINITION PROJECT_CORE)
 get_directory_property(PE_DEFINES DIRECTORY paradigm DEFINITION PE_DEFINES)
-
-set_property(TARGET ${PROJECT_PSL} PROPERTY FOLDER "paradigm")
-set_property(TARGET ${PROJECT_CORE} PROPERTY FOLDER "paradigm")
 
 add_subdirectory(extern)
 
@@ -48,19 +42,23 @@ if(VS_ADD_NATIVE_VISUALIZERS)
 	source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/nvs" PREFIX "natvis" FILES ${NATVIS}) 
 endif()
 
-add_definitions(${PE_DEFINES})
 add_executable(${LOCAL_PROJECT} ${INC} ${SRC} ${GENERATOR_INFORMATION} ${NATVIS})
 
 set_property(TARGET ${LOCAL_PROJECT} PROPERTY FOLDER "tools")
-add_dependencies(${LOCAL_PROJECT} glslang)
-target_link_libraries(${LOCAL_PROJECT} PUBLIC 
-	${PE_DL_LIBS} psl core assimp nlohmann_json)
+target_link_libraries(${LOCAL_PROJECT} PUBLIC
+	paradigm::psl
+	paradigm::core
+	assimp
+	spirv-cross-cpp
+	spirv-cross-reflect
+	SPIRV
+	glslang
+	glslang-default-resource-limits
+)
 
 target_include_directories(${LOCAL_PROJECT}
 	PUBLIC 
 		${CMAKE_CURRENT_SOURCE_DIR}/inc
-		${assimp_SOURCE_DIR}/include
-		${assimp_BINARY_DIR}/include
 )
 
 target_compile_features(${LOCAL_PROJECT} PUBLIC ${PE_COMPILER_FEATURES})

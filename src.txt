@@ -3,5 +3,5 @@ src/assembler.cpp
 src/stdafx.cpp
 src/generators/shader.cpp
 src/generators/models.cpp
-src/glslang_utils.cpp
+src/details/spirv.cpp
 )

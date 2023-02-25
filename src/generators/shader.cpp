@@ -1,6 +1,6 @@
 ﻿#include "generators/shader.h"
 #include "core/gfx/types.hpp"
-#include "glslang_utils.h"
+#include "details/spirv.hpp"
 #include "psl/application_utils.hpp"
 #include "psl/library.hpp"
 #include "psl/meta.hpp"
@@ -153,26 +153,27 @@ bool shader::generate(assembler::pathstring ifile,
 	if(!utility::platform::directory::exists(directory))
 		utility::platform::directory::create(directory, true);
 
-	auto index				  = ifile->find_last_of(("."));
-	auto extension			  = ifile->substr(index + 1);
-	tools::glslang::type type = tools::glslang::type::unknown;
-	if(extension == ("vert"))
-		type = tools::glslang::type::vert;
-	else if(extension == ("frag"))
-		type = tools::glslang::type::frag;
-	else if(extension == ("tesc"))
-		type = tools::glslang::type::tesc;
-	else if(extension == ("geom"))
-		type = tools::glslang::type::geom;
-	else if(extension == ("comp"))
-		type = tools::glslang::type::comp;
-	else if(extension == ("tese"))
-		type = tools::glslang::type::tese;
+	auto index	   = ifile->find_last_of(("."));
+	auto extension = ifile->substr(index + 1);
 
-	if(type == tools::glslang::type::unknown)
+	tools::shader_stage_t type = tools::shader_stage_t::unknown;
+	if(extension == ("vert"))
+		type = tools::shader_stage_t::vert;
+	else if(extension == ("frag"))
+		type = tools::shader_stage_t::frag;
+	else if(extension == ("tesc"))
+		type = tools::shader_stage_t::tesc;
+	else if(extension == ("geom"))
+		type = tools::shader_stage_t::geom;
+	else if(extension == ("comp"))
+		type = tools::shader_stage_t::comp;
+	else if(extension == ("tese"))
+		type = tools::shader_stage_t::tese;
+
+	if(type == tools::shader_stage_t::unknown)
 		return false;
 
-	auto ofile_meta = ofile.platform() + "-" + tools::glslang::type_str[(uint8_t)type] + "." + ::meta::META_EXTENSION;
+	auto ofile_meta = ofile.platform() + "-" + tools::shader_stage_str[(uint8_t)type] + "." + ::meta::META_EXTENSION;
 
 	psl::timer timer;
 
@@ -207,13 +208,57 @@ bool shader::generate(assembler::pathstring ifile,
 	}
 
 	std::optional<size_t> gles_version;
-	if(std::find(std::begin(types), std::end(types), "gles") != std::end(types))
-		gles_version = (type == tools::glslang::type::comp) ? 310 : 300;
+	if(std::find(std::begin(types), std::end(types), "gles") != std::end(types)) {
+		gles_version = (type == tools::shader_stage_t::comp) ? 310 : 300;
+	}
 
-	if(!tools::glslang::compile(
-		 utility::application::path::get_path(), content, ofile.platform(), type, optimize, gles_version))
+	if(auto result = tools::glsl_compile(content, (tools::shader_stage_t)type, optimize, gles_version); !result) {
+		assembler::log->error("errors while generating:");
+		for(auto const& message : result.messages) {
+			if(message.error) {
+				assembler::log->error(message.message);
+			} else {
+				assembler::log->info(message.message);
+			}
+		}
+
 		return false;
+	} else {
+		for(auto const& message : result.messages) {
+			if(message.error) {
+				assembler::log->error(message.message);
+			} else {
+				assembler::log->info(message.message);
+			}
+		}
 
+		auto output_file = ofile.platform();
+		if(!result.spirv.empty() && !utility::platform::file::write(output_file + ".spv", result.spirv)) {
+			assembler::log->error("failed to write the spirv to: {}", output_file + ".spv");
+		}
+		if(!result.gles.empty() && !utility::platform::file::write(output_file + ".gles", result.gles)) {
+			assembler::log->error("failed to write the gles to: {}", output_file + ".gles");
+		}
+		if(result.shader.stage != core::gfx::shader_stage {0}) {
+			auto output_meta_file = output_file + "." + psl::meta::META_EXTENSION;
+			psl::UID uid		  = psl::UID::generate();
+			if(utility::platform::file::exists(output_meta_file)) {
+				meta::file* original = nullptr;
+				serialization::serializer temp_s;
+				temp_s.deserialize<serialization::decode_from_format>(original, output_file);
+				uid = original->ID();
+			}
+			core::meta::shader shaderMeta {uid};
+			shaderMeta.inputs(result.shader.inputs);
+			shaderMeta.outputs(result.shader.outputs);
+			shaderMeta.descriptors(result.shader.descriptors);
+			shaderMeta.stage(result.shader.stage);
+			serialization::serializer s;
+			format::container container;
+			s.serialize<serialization::encode_to_format>(&shaderMeta, container);
+			utility::platform::file::write(output_meta_file, psl::from_string8_t(container.to_string()));
+		}
+	}
 	return true;
 }
 

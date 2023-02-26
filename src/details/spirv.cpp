@@ -8,6 +8,7 @@
 #include "glslang/Public/ResourceLimits.h"
 #include <SPIRV/GlslangToSpv.h>
 #include <spirv_reflect.hpp>
+#include <spirv_glsl.hpp>
 tools::_internal::glslang_manager_t tools::_internal::glslang_manager {};
 
 namespace tools {

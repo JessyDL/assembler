@@ -1,13 +1,12 @@
-cmake_minimum_required(VERSION 3.11)
+cmake_minimum_required(VERSION 3.19)
 set(PROJECT_ASSEMBLER assembler CACHE INTERNAL "")
 set(LOCAL_PROJECT ${PROJECT_ASSEMBLER})
 project(${LOCAL_PROJECT} VERSION 1.0.0 LANGUAGES CXX)
 
 include(FetchContent)
 
-if(MSVC) # we currently make no distinction for CLang (todo)
-	add_compile_options(/MP)
-endif()
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 # -------------------------------------------------------------------------------------------------
 # Paradigm Engine setup
 # -------------------------------------------------------------------------------------------------
@@ -49,11 +48,10 @@ target_link_libraries(${LOCAL_PROJECT} PUBLIC
 	paradigm::psl
 	paradigm::core
 	assimp
-	spirv-cross-cpp
-	spirv-cross-reflect
-	SPIRV
-	glslang
-	glslang-default-resource-limits
+	spirv-cross-reflect					# reflect spirv
+	spirv-cross-glsl					# spirv to gles
+	SPIRV								# glsl to spirv
+	glslang-default-resource-limits		# default resources required to feed to glsl compiler
 )
 
 target_include_directories(${LOCAL_PROJECT}

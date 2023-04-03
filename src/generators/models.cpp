@@ -22,9 +22,10 @@
 	#define new DBG_NEW
 #endif
 
-//#include "data/animation.h"
+#include "core/data/animation.hpp"
 #include "core/data/geometry.hpp"
-//#include "data/skeleton.h"
+#include "core/data/skeleton.hpp"
+
 using namespace assembler::generators;
 using namespace core::data;
 using namespace psl::math;
@@ -262,59 +263,82 @@ psl::mat4x4 convert(aiMatrix4x4t<T> const& source) {
 }
 
 bool import_skeleton(aiMesh* pAIMesh, psl::string output_file, bool binary) {
-	throw std::runtime_error("not implemented");
-	return false;
+	if(pAIMesh->mNumBones == 0)
+		return true;
 
-	/*if(pAIMesh->mNumBones == 0) return true;
-	psl::array<skeleton::bone> bones{};
+	using skeleton_t = core::data::skeleton_t;
+	using bone_t	 = skeleton_t::bone_t;
+	using weight_t	 = bone_t::weight_t;
+
+	psl::array<bone_t> bones {};
 	bones.reserve(pAIMesh->mNumBones);
-	for(auto i = 0; i < pAIMesh->mNumBones; ++i)
-	{
-		const auto& aiBone = *pAIMesh->mBones[i];
+	for(auto i = 0u; i < pAIMesh->mNumBones; ++i) {
+		auto const& aiBone = *pAIMesh->mBones[i];
 		auto& bone		   = bones.emplace_back();
 
 		bone.name(aiBone.mName.C_Str());
-		bone.inverse_bindpose(convert(aiBone.mOffsetMatrix));
-		psl::array<core::data::geometry::index_size_t> weight_ids{};
-		psl::array<float> weights{};
-		weight_ids.reserve(aiBone.mNumWeights);
+		bone.bonespace_offset(convert(aiBone.mOffsetMatrix));
+		psl::array<weight_t> weights {};
 		weights.reserve(aiBone.mNumWeights);
-		for(auto w = 0; w < aiBone.mNumWeights; ++w)
-		{
-			weight_ids.emplace_back(aiBone.mWeights[w].mVertexId);
-			weights.emplace_back(aiBone.mWeights[w].mWeight);
+		for(auto w = 0u; w < aiBone.mNumWeights; ++w) {
+			weights.emplace_back(aiBone.mWeights[w].mVertexId, aiBone.mWeights[w].mWeight);
 		}
 
 		bone.weights(weights);
-		bone.weight_ids(weight_ids);
 	}
-	core::data::skeleton skeleton{};
+	skeleton_t skeleton {};
 	skeleton.bones(bones);
 
-	return write_meta(skeleton, std::move(output_file), SKELETON_FORMAT, binary);*/
+	return write_meta(skeleton, std::move(output_file), SKELETON_FORMAT, binary);
 }
 
 bool import_animation(aiAnimation const& aiAnim, psl::string output_file, bool binary) {
-	throw std::runtime_error("not implemented");
-	return false;
-	/*
-	core::data::animation anim;
+	using animation_t = core::data::animation_t;
+
+	animation_t animation;
 	psl::string name = aiAnim.mName.C_Str();
-	utility::string::replace_all(name, " ", "_");
-	utility::string::to_lower(name);
-	anim.name(name);
-	anim.duration(aiAnim.mDuration);
-	anim.fps(aiAnim.mTicksPerSecond);
-	psl::array<core::data::animation::bone> bones;
-	for(auto i = 0; i < aiAnim.mNumChannels; ++i)
-	{
-		const auto& aiChannel = *aiAnim.mChannels[i];
+
+	animation.name(aiAnim.mName.C_Str());
+	animation.duration(aiAnim.mDuration);
+	animation.frames_per_second(aiAnim.mTicksPerSecond);
+
+	psl::array<core::data::animation_t::bone_t> bones;
+	for(auto i = 0u; i < aiAnim.mNumChannels; ++i) {
+		auto const& aiChannel = *aiAnim.mChannels[i];
 		auto& bone			  = bones.emplace_back();
 		bone.name(aiChannel.mNodeName.C_Str());
+		psl::array<core::data::animation_t::bone_t::position_timed_t> positiondata {};
+		psl::array<core::data::animation_t::bone_t::rotation_timed_t> rotationdata {};
+		psl::array<core::data::animation_t::bone_t::scale_timed_t> scaledata {};
+		positiondata.reserve(aiChannel.mNumPositionKeys);
+		rotationdata.reserve(aiChannel.mNumRotationKeys);
+		scaledata.reserve(aiChannel.mNumScalingKeys);
+
+		for(auto u = 0u; u < aiChannel.mNumPositionKeys; ++u) {
+			positiondata.emplace_back(psl::vec3 {aiChannel.mPositionKeys[u].mValue.x,
+												 aiChannel.mPositionKeys[u].mValue.y,
+												 aiChannel.mPositionKeys[u].mValue.z},
+									  aiChannel.mPositionKeys[u].mTime);
+		}
+		for(auto u = 0u; u < aiChannel.mNumRotationKeys; ++u) {
+			rotationdata.emplace_back(psl::quat {aiChannel.mRotationKeys[u].mValue.x,
+												 aiChannel.mRotationKeys[u].mValue.y,
+												 aiChannel.mRotationKeys[u].mValue.z,
+												 aiChannel.mRotationKeys[u].mValue.w},
+									  aiChannel.mRotationKeys[u].mTime);
+		}
+		for(auto u = 0u; u < aiChannel.mNumScalingKeys; ++u) {
+			scaledata.emplace_back(psl::vec3 {aiChannel.mScalingKeys[u].mValue.x,
+											  aiChannel.mScalingKeys[u].mValue.y,
+											  aiChannel.mScalingKeys[u].mValue.z},
+								   aiChannel.mScalingKeys[u].mTime);
+		}
+		bone.positions(std::move(positiondata));
+		bone.rotations(std::move(rotationdata));
+		bone.scale(std::move(scaledata));
 	}
-	anim.bones(std::move(bones));
-	return write_meta(anim, std::move(output_file) + ((name.empty())?"":"_" + name), ANIMATION_FORMAT, binary);
-	*/
+	animation.bones(std::move(bones));
+	return write_meta(animation, std::move(output_file) + ((name.empty()) ? "" : "_" + name), ANIMATION_FORMAT, binary);
 }
 
 void models::on_invoke(cli::pack& pack) {
@@ -366,7 +390,6 @@ void models::on_invoke(cli::pack& pack) {
 	Assimp::Importer importer;
 	Assimp::DefaultLogger::create("", Assimp::Logger::VERBOSE);
 
-
 	unsigned int flags = 0u;
 	if(!proccess_flags(pack, flags))
 		return;
@@ -386,7 +409,7 @@ void models::on_invoke(cli::pack& pack) {
 
 	aiScene const* pScene = importer.ReadFile(psl::to_string8_t(input_file), flags);
 	psl::string errorMessage;
-	if(!pScene) {
+	if(!pScene || pScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE /* unsupported, but could be used to _just_ load animation data */ || !pScene->mRootNode) {
 		utility::terminal::set_color(utility::terminal::color::RED);
 		assembler::log->error("the scene of the file '{0}' could not be loaded by assimp", input_file);
 		assembler::log->error(importer.GetErrorString());

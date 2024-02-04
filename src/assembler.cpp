@@ -119,107 +119,6 @@ psl::string_view get_input(int argc, char* argv[]) {
 	#include "spdlog/sinks/msvc_sink.h"
 #endif
 
-void setup_loggers() {
-	psl::string sub_path = "logs/";
-	if(!utility::platform::file::exists(utility::application::path::get_path() + sub_path + "main.log"))
-		utility::platform::file::write(utility::application::path::get_path() + sub_path + "main.log", "");
-	std::vector<spdlog::sink_ptr> sinks;
-
-	auto mainlogger = std::make_shared<spdlog::sinks::dist_sink_mt>();
-	mainlogger->add_sink(std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-	  utility::application::path::get_path() + sub_path + "main.log", true));
-	mainlogger->add_sink(std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-	  utility::application::path::get_path() + "logs/latest.log", true));
-#ifdef _MSC_VER
-	mainlogger->add_sink(std::make_shared<spdlog::sinks::msvc_sink_mt>());
-#else
-	auto outlogger = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-	outlogger->set_level(spdlog::level::level_enum::warn);
-	mainlogger->add_sink(outlogger);
-#endif
-
-	auto ivklogger = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-	  utility::application::path::get_path() + sub_path + "ivk.log", true);
-
-	auto igleslogger = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-	  utility::application::path::get_path() + sub_path + "igles.log", true);
-
-	auto gfxlogger = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-	  utility::application::path::get_path() + sub_path + "gfx.log", true);
-
-	auto systemslogger = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-	  utility::application::path::get_path() + sub_path + "systems.log", true);
-
-	auto oslogger = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-	  utility::application::path::get_path() + sub_path + "os.log", true);
-
-	auto datalogger = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-	  utility::application::path::get_path() + sub_path + "data.log", true);
-
-	auto corelogger = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-	  utility::application::path::get_path() + sub_path + "core.log", true);
-
-	sinks.push_back(mainlogger);
-	sinks.push_back(corelogger);
-
-	auto logger = std::make_shared<spdlog::logger>("main", begin(sinks), end(sinks));
-	spdlog::register_logger(logger);
-	core::log = logger;
-
-
-	sinks.clear();
-	sinks.push_back(mainlogger);
-	sinks.push_back(systemslogger);
-
-	auto system_logger = std::make_shared<spdlog::logger>("systems", begin(sinks), end(sinks));
-	spdlog::register_logger(system_logger);
-	core::systems::log = system_logger;
-
-	sinks.clear();
-	sinks.push_back(mainlogger);
-	sinks.push_back(oslogger);
-
-	auto os_logger = std::make_shared<spdlog::logger>("os", begin(sinks), end(sinks));
-	spdlog::register_logger(os_logger);
-	core::os::log = os_logger;
-
-	sinks.clear();
-	sinks.push_back(mainlogger);
-	sinks.push_back(datalogger);
-
-	auto data_logger = std::make_shared<spdlog::logger>("data", begin(sinks), end(sinks));
-	spdlog::register_logger(data_logger);
-	core::data::log = data_logger;
-
-	sinks.clear();
-	sinks.push_back(mainlogger);
-	sinks.push_back(gfxlogger);
-
-	auto gfx_logger = std::make_shared<spdlog::logger>("gfx", begin(sinks), end(sinks));
-	spdlog::register_logger(gfx_logger);
-	core::gfx::log = gfx_logger;
-
-#ifdef PE_VULKAN
-	sinks.clear();
-	sinks.push_back(mainlogger);
-	sinks.push_back(ivklogger);
-
-	auto ivk_logger = std::make_shared<spdlog::logger>("ivk", begin(sinks), end(sinks));
-	spdlog::register_logger(ivk_logger);
-	core::ivk::log = ivk_logger;
-#endif
-#ifdef PE_GLES
-	sinks.clear();
-	sinks.push_back(mainlogger);
-	sinks.push_back(igleslogger);
-
-	auto igles_logger = std::make_shared<spdlog::logger>("igles", begin(sinks), end(sinks));
-	spdlog::register_logger(igles_logger);
-	core::igles::log = igles_logger;
-#endif
-	spdlog::set_pattern("%8T.%6f [%=8n] [%=8l] %^%v%$ %@", spdlog::pattern_time_type::utc);
-}
-
 #include <atomic>
 
 std::atomic<graphics_backend> gBackend {graphics_backend::undefined};
@@ -301,7 +200,7 @@ void ui_icon() {}
 bool volatile should_exit = false;
 void launch_gassembler(graphics_backend backend) {
 	using namespace core;
-	psl::string libraryPath {utility::application::path::library + "resources.metalib"};
+	psl::string libraryPath {psl::utility::application::path::library + "resources.metalib"};
 	memory::region resource_region {20_mb, 4u, new memory::default_allocator()};
 
 	psl::string8_t environment = "";
@@ -326,7 +225,7 @@ void launch_gassembler(graphics_backend backend) {
 		return;
 	}
 
-	auto context_handle = cache.create<core::gfx::context>(backend, psl::string8_t {APPLICATION_NAME});
+	auto context_handle = cache.create<core::gfx::context>(backend, psl::string8_t {APPLICATION_NAME}, surface_handle);
 
 	// this exists due to Android support.
 	/// \todo ideally this is passed into the entry function
@@ -448,7 +347,7 @@ int main(int argc, char* argv[]) {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
 
-	setup_loggers();
+	core::initialize_loggers();
 
 	assembler::log = std::make_shared<spdlog::logger>("", std::make_shared<spdlog::sinks::stdout_color_sink_st>());
 	assembler::log->set_pattern("%v");
@@ -516,7 +415,7 @@ int main(int argc, char* argv[]) {
 				assembler::log->error("ERROR: a graphical editor is already running");
 			}
 		}
-		psl::array<psl::string_view> commands = utility::string::split(get_input(argc, argv), ("|"));
+		psl::array<psl::string_view> commands = psl::utility::string::split(get_input(argc, argv), ("|"));
 		try {
 			root.parse(commands);
 		} catch(std::runtime_error const& re) {

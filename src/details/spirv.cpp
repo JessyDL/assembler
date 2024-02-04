@@ -4,6 +4,7 @@
 #include "psl/array.hpp"
 #include "psl/array_view.hpp"
 #include "psl/ustring.hpp"
+#include "psl/string_utils.hpp"
 
 #include "glslang/Public/ResourceLimits.h"
 #include <SPIRV/GlslangToSpv.h>
@@ -78,7 +79,7 @@ bool reflect_spirv(std::vector<uint32_t> const& spirv, glsl_compile_result_t& re
 				result.success = false;
 				result.shader  = {};
 				result.messages.emplace_back(
-				  fmt::format("reflection error, could not decode the attributes type {}", type.basetype), true);
+				  fmt::format("reflection error, could not decode the attributes type {}", std::to_underlying(type.basetype)), true);
 				return {};
 			}
 		}
@@ -127,12 +128,12 @@ bool reflect_spirv(std::vector<uint32_t> const& spirv, glsl_compile_result_t& re
 
 				switch(storage) {
 				case spv::StorageClassUniform:
-					descriptor.type(utility::string::contains(value.name, "_DYNAMIC_")
+					descriptor.type(psl::utility::string::contains(value.name, "_DYNAMIC_")
 									  ? core::gfx::binding_type::uniform_buffer_dynamic
 									  : core::gfx::binding_type::uniform_buffer);
 					break;
 				case spv::StorageClassStorageBuffer:
-					descriptor.type(utility::string::contains(value.name, "_DYNAMIC_")
+					descriptor.type(psl::utility::string::contains(value.name, "_DYNAMIC_")
 									  ? core::gfx::binding_type::storage_buffer_dynamic
 									  : core::gfx::binding_type::storage_buffer);
 					break;
@@ -160,14 +161,14 @@ bool reflect_spirv(std::vector<uint32_t> const& spirv, glsl_compile_result_t& re
 					result.shader  = {};
 					result.success = false;
 					result.messages.emplace_back(
-					  fmt::format("reflection error, unknown storage {} for image type", type.storage), true);
+					  fmt::format("reflection error, unknown storage {} for image type", std::to_underlying(type.storage)), true);
 					return {};
 				}
 				break;
 			default:
 				result.shader  = {};
 				result.success = false;
-				result.messages.emplace_back(fmt::format("reflection error, unknown descriptor type {}", type.basetype),
+				result.messages.emplace_back(fmt::format("reflection error, unknown descriptor type {}", std::to_underlying(type.basetype)),
 											 true);
 				return {};
 			}

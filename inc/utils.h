@@ -7,17 +7,17 @@ namespace assembler {
 class pathstring {
   public:
 	pathstring() = default;
-	pathstring(char const* path) : path(std::move(utility::platform::file::to_generic(psl::string(path)))) {};
-	pathstring(psl::string8_t path) : path(std::move(utility::platform::file::to_generic(path))) {};
-	pathstring(psl::string8::view path) : path(std::move(utility::platform::file::to_generic(path))) {};
+	pathstring(char const* path) : path(std::move(psl::utility::platform::file::to_generic(psl::string(path)))) {};
+	pathstring(psl::string8_t path) : path(std::move(psl::utility::platform::file::to_generic(path))) {};
+	pathstring(psl::string8::view path) : path(std::move(psl::utility::platform::file::to_generic(path))) {};
 
 	operator psl::string8::view() const noexcept { return path; }
 	operator psl::string8_t&() noexcept { return path; }
 
-	psl::string8_t windows() const noexcept { return utility::platform::file::to_windows(path); }
-	psl::string8_t unix() const noexcept { return utility::platform::file::to_unix(path); }
+	psl::string8_t windows() const noexcept { return psl::utility::platform::file::to_windows(path); }
+	psl::string8_t unix() const noexcept { return psl::utility::platform::file::to_unix(path); }
 
-	psl::string8_t platform() const noexcept { return utility::platform::file::to_platform(path); }
+	psl::string8_t platform() const noexcept { return psl::utility::platform::file::to_platform(path); }
 
 	psl::string8_t const* operator->() const noexcept { return &path; }
 	psl::string8_t* operator->() noexcept { return &path; }
@@ -44,15 +44,15 @@ inline psl::array<std::pair<pathstring, pathstring>> get_files(pathstring input,
 	}
 	if(input[input->size() - 1] == '*') {
 		auto directory = input->erase(input->size() - 1);
-		if(!utility::platform::directory::is_directory(directory)) {
+		if(!psl::utility::platform::directory::is_directory(directory)) {
 			directory.erase(directory.find_last_of('/') + 1);
 		}
-		auto ifiles = utility::platform::directory::all_files(directory, true);
+		auto ifiles = psl::utility::platform::directory::all_files(directory, true);
 		if(output->empty()) {
 			output = directory;
 		}
 
-		output->erase(std::next(std::begin(output), utility::string::rfind_first_not_of(output, '/')),
+		output->erase(std::next(std::begin(output), psl::utility::string::rfind_first_not_of(output, '/')),
 					  std::end(output));
 
 		bool prepend = false;
@@ -77,7 +77,7 @@ inline psl::array<std::pair<pathstring, pathstring>> get_files(pathstring input,
 				auto directory = input;
 				auto offset	   = 1;
 				while(output[offset] == '/') ++offset;
-				if(!utility::platform::directory::is_directory(directory)) {
+				if(!psl::utility::platform::directory::is_directory(directory)) {
 					directory->erase(directory->find_last_of('/') + 1);
 				}
 				output = directory + output->substr(offset);

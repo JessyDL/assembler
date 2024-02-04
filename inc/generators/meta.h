@@ -482,7 +482,7 @@ class meta {
 
   public:
 	meta() {
-		if(utility::platform::file::exists("metamapping.txt")) {
+		if(psl::utility::platform::file::exists("metamapping.txt")) {
 			mapping_table table;
 			psl::serialization::serializer s;
 			s.deserialize<psl::serialization::decode_from_format>(table, "metamapping.txt");
@@ -533,10 +533,10 @@ class meta {
 
 		size_t relative_position = 0u;
 
-		lib_dir = utility::platform::directory::to_unix(lib_dir);
+		lib_dir = psl::utility::platform::directory::to_unix(lib_dir);
 		if(lib_dir[lib_dir.size() - 1] != '/')
 			lib_dir += '/';
-		res_dir = utility::platform::directory::to_unix(res_dir);
+		res_dir = psl::utility::platform::directory::to_unix(res_dir);
 		if(res_dir[res_dir.size() - 1] != '/')
 			res_dir += '/';
 		auto const max_index = std::min(lib_dir.find_last_of(('/')), res_dir.find_last_of(('/')));
@@ -547,20 +547,20 @@ class meta {
 			}
 		}
 
-		if(!utility::platform::directory::exists(res_dir)) {
-			utility::terminal::set_color(utility::terminal::color::RED);
+		if(!psl::utility::platform::directory::exists(res_dir)) {
+			psl::utility::terminal::set_color(psl::utility::terminal::color::RED);
 			assembler::log->error(
 			  "resource directory does not exist, so nothing to generate. This was likely unintended?");
-			utility::terminal::set_color(utility::terminal::color::WHITE);
+			psl::utility::terminal::set_color(psl::utility::terminal::color::WHITE);
 			return;
 		}
 
-		if(!utility::platform::file::exists(lib_dir + lib_name)) {
-			utility::platform::file::write(lib_dir + lib_name, "");
+		if(!psl::utility::platform::file::exists(lib_dir + lib_name)) {
+			psl::utility::platform::file::write(lib_dir + lib_name, "");
 			assembler::log->info("file not found, created one.");
 		}
 
-		auto all_files = utility::platform::directory::all_files(res_dir, true);
+		auto all_files = psl::utility::platform::directory::all_files(res_dir, true);
 
 		psl::string meta_ext = "." + psl::meta::META_EXTENSION;
 		auto meta_end =
@@ -573,7 +573,7 @@ class meta {
 		psl::serialization::serializer s;
 		for(auto file_it = std::begin(all_files); file_it != meta_end; ++file_it) {
 			auto const& file {*file_it};
-			if(auto file_content = utility::platform::file::read(file); file_content) {
+			if(auto file_content = psl::utility::platform::file::read(file); file_content) {
 				psl::format::container cont {psl::to_string8_t(file_content.value())};
 				psl::string UID;
 
@@ -590,10 +590,10 @@ class meta {
 				UID = metaPtr->ID().to_string();
 				delete(metaPtr);
 				psl::array<psl::string> files;
-				auto metapath = utility::platform::directory::to_unix(file);
+				auto metapath = psl::utility::platform::directory::to_unix(file);
 				{
 					auto filepath =
-					  utility::platform::file::to_platform(metapath.substr(0, metapath.find_last_of('.')));
+					  psl::utility::platform::file::to_platform(metapath.substr(0, metapath.find_last_of('.')));
 					if(filepath.find('.') == filepath.npos) {
 						std::copy_if(
 						  meta_end, std::end(all_files), std::back_inserter(files), [&filepath](auto const& file) {
@@ -607,8 +607,8 @@ class meta {
 
 				bool generated = false;
 				for(auto const& platform_filepath : files) {
-					auto filepath = utility::platform::file::to_generic(platform_filepath);
-					if(!utility::platform::file::exists(filepath)) {
+					auto filepath = psl::utility::platform::file::to_generic(platform_filepath);
+					if(!psl::utility::platform::file::exists(filepath)) {
 						assembler::log->error("meta {0} pointing to unexisting file {1}", metapath, filepath);
 						continue;
 					}
@@ -618,16 +618,16 @@ class meta {
 						dot += 1;
 					auto extension = filepath.substr(dot, filepath.size() - dot);
 					auto final_filepath =
-					  utility::platform::directory::to_generic(std::filesystem::relative(filepath, lib_dir).string());
+					  psl::utility::platform::directory::to_generic(std::filesystem::relative(filepath, lib_dir).string());
 					auto final_metapath =
-					  utility::platform::directory::to_generic(std::filesystem::relative(metapath, lib_dir).string());
+					  psl::utility::platform::directory::to_generic(std::filesystem::relative(metapath, lib_dir).string());
 
 					auto time = std::to_string(
-					  std::filesystem::last_write_time(utility::platform::directory::to_platform(filepath))
+					  std::filesystem::last_write_time(psl::utility::platform::directory::to_platform(filepath))
 						.time_since_epoch()
 						.count());
 					auto metatime = std::to_string(
-					  std::filesystem::last_write_time(utility::platform::directory::to_platform(metapath))
+					  std::filesystem::last_write_time(psl::utility::platform::directory::to_platform(metapath))
 						.time_since_epoch()
 						.count());
 
@@ -649,16 +649,16 @@ class meta {
 
 				if(!generated && clean) {
 					std::cout << "erasing dangling meta file at " << metapath << std::endl;
-					if(!utility::platform::file::erase(metapath)) {
-						utility::terminal::set_color(utility::terminal::color::RED);
+					if(!psl::utility::platform::file::erase(metapath)) {
+						psl::utility::terminal::set_color(psl::utility::terminal::color::RED);
 						assembler::log->error("could not delete '{}'", metapath);
-						utility::terminal::set_color(utility::terminal::color::WHITE);
+						psl::utility::terminal::set_color(psl::utility::terminal::color::WHITE);
 					}
 				}
 			}
 		}
 
-		utility::platform::file::write(lib_dir + lib_name, psl::string_view(content.data(), content.size() - 1));
+		psl::utility::platform::file::write(lib_dir + lib_name, psl::string_view(content.data(), content.size() - 1));
 		assembler::log->info("wrote out a new meta library at: '{}'", psl::to_string8_t(lib_dir + lib_name));
 	}
 
@@ -678,9 +678,9 @@ class meta {
 			force_regenerate = update;
 
 		if(input_path->size() == 0) {
-			utility::terminal::set_color(utility::terminal::color::RED);
+			psl::utility::terminal::set_color(psl::utility::terminal::color::RED);
 			assembler::log->info("error: the input source path did not contain any characters.");
-			utility::terminal::set_color(utility::terminal::color::WHITE);
+			psl::utility::terminal::set_color(psl::utility::terminal::color::WHITE);
 			return;
 		}
 
@@ -693,14 +693,14 @@ class meta {
 			files.erase(std::remove_if(std::begin(files),
 									   std::end(files),
 									   [meta_extension](auto const& file_pair) {
-										   return utility::platform::file::exists(file_pair.second);
+										   return psl::utility::platform::file::exists(file_pair.second);
 									   }),
 						std::end(files));
 		}
 
 		for(auto const& [input, output] : files) {
-			if(psl::string_view dir {output->data(), output->rfind('/')}; !utility::platform::directory::exists(dir))
-				utility::platform::directory::create(dir);
+			if(psl::string_view dir {output->data(), output->rfind('/')}; !psl::utility::platform::directory::exists(dir))
+				psl::utility::platform::directory::create(dir);
 
 			auto extension = input->substr(input->rfind('.') + 1);
 
@@ -712,7 +712,7 @@ class meta {
 					meta_t = it->second;
 			}
 
-			auto id = utility::crc64(psl::to_string8_t(meta_t));
+			auto id = psl::utility::crc64(psl::to_string8_t(meta_t));
 			if(auto it = psl::serialization::accessor::polymorphic_data().find(id);
 			   it != psl::serialization::accessor::polymorphic_data().end()) {
 				psl::meta::file* target = (psl::meta::file*)((*it->second->factory)());
@@ -720,7 +720,7 @@ class meta {
 				psl::UID uid = psl::UID::generate();
 				psl::serialization::serializer s;
 
-				if(utility::platform::file::exists(output.platform()) && update) {
+				if(psl::utility::platform::file::exists(output.platform()) && update) {
 					psl::meta::file* original = nullptr;
 					s.deserialize<psl::serialization::decode_from_format>(original, output.platform());
 					uid = original->ID();
@@ -728,8 +728,8 @@ class meta {
 
 
 				switch(id) {
-				case utility::crc64("TEXTURE_META"): {
-					auto data = utility::platform::file::read(
+				case psl::utility::crc64("TEXTURE_META"): {
+					auto data = psl::utility::platform::file::read(
 								  input, std::max(utility::ktx::header_size(), utility::dds::header_size()))
 								  .value();
 					auto view = psl::array_view<std::byte>((std::byte*)data.data(), data.size());
@@ -764,17 +764,17 @@ class meta {
 				auto metaNode = cont.find("META");
 				auto node	  = cont.find(metaNode.get(), "UID");
 				cont.remove(node.get());
-				cont.add_value(metaNode.get(), "UID", utility::to_string(uid));
+				cont.add_value(metaNode.get(), "UID", psl::utility::to_string(uid));
 
 
-				utility::platform::file::write(output, psl::from_string8_t(cont.to_string()));
+				psl::utility::platform::file::write(output, psl::from_string8_t(cont.to_string()));
 				assembler::log->info("wrote a {0} file to {1} from {2}", meta_t, output.platform(), input.platform());
 			} else {
-				utility::terminal::set_color(utility::terminal::color::RED);
+				psl::utility::terminal::set_color(psl::utility::terminal::color::RED);
 				assembler::log->error("error: could not deduce the polymorphic type from the given key '{}'", meta_t);
 				assembler::log->error(
 				  "  either the given key was incorrect, or the type was not registered to the assembler.");
-				utility::terminal::set_color(utility::terminal::color::WHITE);
+				psl::utility::terminal::set_color(psl::utility::terminal::color::WHITE);
 				continue;
 			}
 		}

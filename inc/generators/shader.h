@@ -48,7 +48,7 @@ class shader {
 		  {("b"), 1}, {("i"), 4}, {("u"), 4}, {(""), 4}, {("d"), 8}};
 		for(size_t i = 2; i <= 4; ++i) {
 			for(auto const& vType : vectoral_types) {
-				psl::string fulltype   = vType.first + ("vec") + psl::from_string8_t(utility::to_string(i));
+				psl::string fulltype   = vType.first + ("vec") + psl::from_string8_t(psl::utility::to_string(i));
 				size_t size			   = vType.second * i;
 				m_KnownTypes[fulltype] = size;
 			}
@@ -57,7 +57,7 @@ class shader {
 		vectoral_types = std::unordered_map<psl::string, size_t> {{(""), 4}, {("d"), 8}};
 		for(size_t i = 2; i <= 4; ++i) {
 			for(auto const& vType : vectoral_types) {
-				psl::string fulltype   = vType.first + ("mat") + psl::from_string8_t(utility::to_string(i));
+				psl::string fulltype   = vType.first + ("mat") + psl::from_string8_t(psl::utility::to_string(i));
 				size_t size			   = vType.second * i * i;
 				m_KnownTypes[fulltype] = size;
 			}
@@ -66,8 +66,8 @@ class shader {
 		for(size_t n = 2; n <= 4; ++n) {
 			for(size_t m = 2; m <= 4; ++m) {
 				for(auto const& vType : vectoral_types) {
-					psl::string fulltype = vType.first + ("mat") + psl::from_string8_t(utility::to_string(n)) + ("x") +
-										   psl::from_string8_t(utility::to_string(m));
+					psl::string fulltype = vType.first + ("mat") + psl::from_string8_t(psl::utility::to_string(n)) + ("x") +
+										   psl::from_string8_t(psl::utility::to_string(m));
 					size_t size			   = vType.second * n * m;
 					m_KnownTypes[fulltype] = size;
 				}

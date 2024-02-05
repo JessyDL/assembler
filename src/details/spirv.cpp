@@ -4,44 +4,48 @@
 #include "psl/array.hpp"
 #include "psl/array_view.hpp"
 #include "psl/ustring.hpp"
+#include "psl/string_utils.hpp"
 
-#include "glslang/Public/ResourceLimits.h"
 #include <SPIRV/GlslangToSpv.h>
 #include <spirv_reflect.hpp>
 #include <spirv_glsl.hpp>
+#include <glslang/Include/glslang_c_interface.h>
+#include <glslang/Public/resource_limits_c.h>
 tools::_internal::glslang_manager_t tools::_internal::glslang_manager {};
 
 namespace tools {
 namespace _internal {
 	glslang_manager_t::glslang_manager_t() {
-		glslang::InitializeProcess();
+		glslang_initialize_process();
 	}
 	glslang_manager_t::~glslang_manager_t() {
-		glslang::FinalizeProcess();
+		glslang_finalize_process();
 	}
 }	 // namespace _internal
 
-constexpr EShLanguage get_stage(shader_stage_t stage) {
+constexpr glslang_stage_t get_stage(shader_stage_t stage) {
 	switch(stage) {
 	case shader_stage_t::comp:
-		return EShLangCompute;
+		return glslang_stage_t::GLSLANG_STAGE_COMPUTE;
 	case shader_stage_t::vert:
-		return EShLangVertex;
+		return glslang_stage_t::GLSLANG_STAGE_VERTEX;
 	case shader_stage_t::tesc:
-		return EShLangTessControl;
+		return glslang_stage_t::GLSLANG_STAGE_TESSCONTROL;
 	case shader_stage_t::tese:
-		return EShLangTessEvaluation;
+		return glslang_stage_t::GLSLANG_STAGE_TESSEVALUATION;
 	case shader_stage_t::geom:
-		return EShLangGeometry;
+		return glslang_stage_t::GLSLANG_STAGE_GEOMETRY;
 	case shader_stage_t::frag:
-		return EShLangFragment;
+		return glslang_stage_t::GLSLANG_STAGE_FRAGMENT;
 	default:
-		return EShLangCount;
+		return glslang_stage_t::GLSLANG_STAGE_COUNT;
 	}
 }
 
-bool reflect_spirv(std::vector<uint32_t> const& spirv, glsl_compile_result_t& result) {
-	spirv_cross::CompilerReflection module(spirv);
+bool reflect_spirv(glsl_compile_result_t& result) {
+	auto spirv_data = (const uint32_t*)result.spirv.data();
+	auto spirv_size = result.spirv.size() / sizeof(uint32_t);
+	spirv_cross::CompilerReflection module(spirv_data, spirv_size);
 	auto const& resources = module.get_shader_resources();
 
 	auto parse_attributes = [&module,
@@ -77,8 +81,9 @@ bool reflect_spirv(std::vector<uint32_t> const& spirv, glsl_compile_result_t& re
 			default:
 				result.success = false;
 				result.shader  = {};
-				result.messages.emplace_back(
-				  fmt::format("reflection error, could not decode the attributes type {}", type.basetype), true);
+				result.messages.emplace_back(fmt::format("reflection error, could not decode the attributes type {}",
+														 std::to_underlying(type.basetype)),
+											 true);
 				return {};
 			}
 		}
@@ -127,12 +132,12 @@ bool reflect_spirv(std::vector<uint32_t> const& spirv, glsl_compile_result_t& re
 
 				switch(storage) {
 				case spv::StorageClassUniform:
-					descriptor.type(utility::string::contains(value.name, "_DYNAMIC_")
+					descriptor.type(psl::utility::string::contains(value.name, "_DYNAMIC_")
 									  ? core::gfx::binding_type::uniform_buffer_dynamic
 									  : core::gfx::binding_type::uniform_buffer);
 					break;
 				case spv::StorageClassStorageBuffer:
-					descriptor.type(utility::string::contains(value.name, "_DYNAMIC_")
+					descriptor.type(psl::utility::string::contains(value.name, "_DYNAMIC_")
 									  ? core::gfx::binding_type::storage_buffer_dynamic
 									  : core::gfx::binding_type::storage_buffer);
 					break;
@@ -159,16 +164,17 @@ bool reflect_spirv(std::vector<uint32_t> const& spirv, glsl_compile_result_t& re
 				} else {
 					result.shader  = {};
 					result.success = false;
-					result.messages.emplace_back(
-					  fmt::format("reflection error, unknown storage {} for image type", type.storage), true);
+					result.messages.emplace_back(fmt::format("reflection error, unknown storage {} for image type",
+															 std::to_underlying(type.storage)),
+												 true);
 					return {};
 				}
 				break;
 			default:
 				result.shader  = {};
 				result.success = false;
-				result.messages.emplace_back(fmt::format("reflection error, unknown descriptor type {}", type.basetype),
-											 true);
+				result.messages.emplace_back(
+				  fmt::format("reflection error, unknown descriptor type {}", std::to_underlying(type.basetype)), true);
 				return {};
 			}
 		}
@@ -217,70 +223,85 @@ bool reflect_spirv(std::vector<uint32_t> const& spirv, glsl_compile_result_t& re
 	return result;
 }
 
-glsl_compile_result_t
+bool compileShaderToSPIRV_Vulkan(glslang_stage_t stage, char const* shaderSource, tools::glsl_compile_result_t
+& result) {
+	const glslang_input_t input = {
+	  .language							 = GLSLANG_SOURCE_GLSL,
+	  .stage							 = stage,
+	  .client							 = GLSLANG_CLIENT_VULKAN,
+	  .client_version					 = GLSLANG_TARGET_VULKAN_1_3,
+	  .target_language					 = GLSLANG_TARGET_SPV,
+	  .target_language_version			 = GLSLANG_TARGET_SPV_1_3,
+	  .code								 = shaderSource,
+	  .default_version					 = 100,
+	  .default_profile					 = GLSLANG_NO_PROFILE,
+	  .force_default_version_and_profile = false,
+	  .forward_compatible				 = true,
+	  .messages							 = GLSLANG_MSG_DEFAULT_BIT,
+	  .resource							 = glslang_default_resource(),
+	};
+
+	glslang_shader_t* shader = glslang_shader_create(&input);
+
+	if(!glslang_shader_preprocess(shader, &input)) {
+		result.messages.emplace_back(fmt::format("preprocessing failure: {}\n{}", glslang_shader_get_info_log(shader),
+															 glslang_shader_get_info_debug_log(shader)),
+												 true);
+		glslang_shader_delete(shader);
+		return false;
+	}
+
+	if(!glslang_shader_parse(shader, &input)) {
+		result.messages.emplace_back(fmt::format("compilation failure: {}\n{}\n{}", glslang_shader_get_info_log(shader),
+												 glslang_shader_get_info_debug_log(shader),
+												 glslang_shader_get_preprocessed_code(shader)),
+															 true);
+		glslang_shader_delete(shader);
+		return false;
+	}
+
+	glslang_program_t* program = glslang_program_create();
+	glslang_program_add_shader(program, shader);
+
+	if(!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT)) {
+		result.messages.emplace_back(fmt::format("linking failure: {}\n{}", glslang_program_get_info_log(program),
+															 glslang_program_get_info_debug_log(program)),
+															 true);
+		glslang_program_delete(program);
+		glslang_shader_delete(shader);
+		return false;
+	}
+
+	glslang_program_SPIRV_generate(program, stage);
+	result.spirv.resize(glslang_program_SPIRV_get_size(program) * sizeof(uint32_t));
+	glslang_program_SPIRV_get(program, (uint32_t*)(result.spirv.data()));
+
+	char const* spirv_messages = glslang_program_SPIRV_get_messages(program);
+	if (spirv_messages) {
+		result.messages.emplace_back(spirv_messages, false);
+	}
+
+	glslang_program_delete(program);
+	glslang_shader_delete(shader);
+
+	return true;
+}
+	glsl_compile_result_t
 glsl_compile(psl::string_view source, shader_stage_t type, bool optimize, std::optional<size_t> gles_version) {
 	auto const stage = get_stage(type);
 	glsl_compile_result_t result {true};
-	if(stage == EShLangCount) {
+	if(stage == glslang_stage_t::GLSLANG_STAGE_COUNT) {
 		result.messages.emplace_back(fmt::format("unknown shader_stage_t value '{}'", std::to_underlying(type)), true);
 		result.success = false;
 		return result;
 	}
-	sizeof(glsl_compile_result_t);
-	sizeof(spirv_cross::CompilerReflection);
-	glslang::TShader shader(stage);
-	TBuiltInResource resources = *GetDefaultResources();
-
-	EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules | EShMsgDefault | EShMsgEnhanced);
-#if !defined(NDEBUG)
-	messages = (EShMessages)(messages | EShMsgDebugInfo);
-#endif
-	// sadly we need to add a temporary due to the API requesting an array of `char const *`
-	auto source_ptr = source.data();
-	shader.setStrings(&source_ptr, 1);
-	shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 110);
-	shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_2);
-	shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_5);
-
-	int const glslVersion = glslang::EShTargetOpenGL_450;
-
-	if(!shader.parse(&resources, glslVersion, true, messages)) {
-		result.messages.emplace_back(
-		  fmt::format("compilation failure: {}\n{}", shader.getInfoLog(), shader.getInfoDebugLog()), true);
+	if (!compileShaderToSPIRV_Vulkan(stage, source.data(), result)) {
 		result.success = false;
 		return result;
 	}
-
-	glslang::SpvOptions spvOptions;
-#if !defined(NDEBUG)
-	spvOptions.generateDebugInfo = true;
-	spvOptions.disableOptimizer	 = true;
-	spvOptions.optimizeSize		 = false;
-	spvOptions.stripDebugInfo	 = false;
-#else
-	spvOptions.generateDebugInfo = false;
-	spvOptions.disableOptimizer	 = !optimize;
-	spvOptions.optimizeSize		 = optimize;
-	spvOptions.stripDebugInfo	 = true;
-#endif
-	spvOptions.validate = true;
-	spv::SpvBuildLogger logger;
-	std::vector<uint32_t> spirv;
-
-	glslang::GlslangToSpv(*shader.getIntermediate(), spirv, &logger, &spvOptions);
-	if(spirv.empty()) {
-		result.messages.emplace_back(fmt::format("spir-v failure: {}", logger.getAllMessages()), true);
-		result.success = false;
-		return result;
-	}
-	if(!logger.getAllMessages().empty()) {
-		result.messages.emplace_back(fmt::format("spir-v output: {}", logger.getAllMessages()), false);
-	}
-	result.spirv =
-	  psl::string_view {reinterpret_cast<char*>(spirv.data()), spirv.size() * (sizeof(uint32_t) / sizeof(char))};
 
 	if(gles_version) {
-		spirv_cross::CompilerGLSL gles_compiler(spirv);
+		spirv_cross::CompilerGLSL gles_compiler((const uint32_t*)result.spirv.data(), result.spirv.size() / sizeof(uint32_t));
 
 		spirv_cross::CompilerGLSL::Options options;
 		options.version = gles_version.value();
@@ -290,7 +311,7 @@ glsl_compile(psl::string_view source, shader_stage_t type, bool optimize, std::o
 		result.gles = gles_compiler.compile();
 	}
 
-	if(!reflect_spirv(spirv, result)) {
+	if(!reflect_spirv(result)) {
 		result.success = false;
 		result.shader  = {};
 		return result;

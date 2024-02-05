@@ -7,6 +7,8 @@ include(FetchContent)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+option(AS_ENABLE_WGSL "Enable WGSL support" ON)
+
 # -------------------------------------------------------------------------------------------------
 # Paradigm Engine setup
 # -------------------------------------------------------------------------------------------------
@@ -51,13 +53,17 @@ target_link_libraries(${LOCAL_PROJECT} PUBLIC
 	spirv-cross-reflect					# reflect spirv
 	spirv-cross-glsl					# spirv to gles
 	SPIRV								# glsl to spirv
+	glslang                             # glsl to spirv
 	glslang-default-resource-limits		# default resources required to feed to glsl compiler
+	$<$<BOOL:${AS_ENABLE_WGSL}>:tint_lang_wgsl_writer tint_lang_spirv_reader>
 )
 
 target_include_directories(${LOCAL_PROJECT}
 	PUBLIC 
 		${CMAKE_CURRENT_SOURCE_DIR}/inc
 )
+
+target_compile_definitions(${LOCAL_PROJECT} PUBLIC $<$<BOOL:${AS_ENABLE_WGSL}>:AS_ENABLE_WGSL>)
 
 target_compile_features(${LOCAL_PROJECT} PUBLIC ${PE_COMPILER_FEATURES})
 target_compile_options(${LOCAL_PROJECT} PUBLIC ${PE_COMPILE_OPTIONS} ${PE_COMPILE_OPTIONS_EXE})

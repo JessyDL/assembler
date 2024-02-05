@@ -11,6 +11,10 @@
 #include "utils.h"
 #include <filesystem>
 #include <iostream>
+
+#if defined(AS_ENABLE_WGSL)
+	#include "tint/tint.h"
+#endif
 // todo we should figure out the bindings dynamically instead of having them written into the files, and then
 // potentially safeguard the user from accidentally merging shaders together that do not work together
 
@@ -239,6 +243,30 @@ bool shader::generate(assembler::pathstring ifile,
 		if(!result.gles.empty() && !utility::platform::file::write(output_file + ".gles", result.gles)) {
 			assembler::log->error("failed to write the gles to: {}", output_file + ".gles");
 		}
+#if defined(AS_ENABLE_WGSL)
+		if(!result.spirv.empty()) {
+			auto spirv = std::vector<uint32_t>(result.spirv.size() / sizeof(uint32_t));
+			std::memcpy(spirv.data(), result.spirv.data(), result.spirv.size());
+			auto spirvReadOption = tint::spirv::reader::Options {};
+			auto tintIr		 = tint::spirv::reader::Read(spirv, spirvReadOption);
+			if (tintIr.Diagnostics().contains_errors()) {
+				assembler::log->error("failed to convert the spirv to tint-ir: {}", tintIr.Diagnostics().str());
+				return false;
+			}
+			auto wgslOptions = tint::wgsl::writer::Options();
+			auto tintWgslRes = tint::wgsl::writer::Generate(tintIr, wgslOptions);
+			if(tintWgslRes != tint::Success) {
+				assembler::log->error("failed to convert the tint-ir to wgsl: {}", tintWgslRes.Failure().reason.str());
+				return false;
+			}
+			auto wgsl = tintWgslRes.Move();
+			if(!utility::platform::file::write(output_file + ".wgsl", wgsl.wgsl)) {
+				assembler::log->error("failed to write the wgsl to: {}", output_file + ".wgsl");
+			}
+		} else {
+			assembler::log->error("no spirv was generated, so no wgsl can be generated");
+		}
+#endif
 		if(result.shader.stage != core::gfx::shader_stage {0}) {
 			auto output_meta_file = output_file + "." + psl::meta::META_EXTENSION;
 			psl::UID uid		  = psl::UID::generate();

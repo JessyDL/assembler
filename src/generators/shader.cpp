@@ -273,7 +273,7 @@ bool shader::generate(assembler::pathstring ifile,
 			if(utility::platform::file::exists(output_meta_file)) {
 				meta::file* original = nullptr;
 				serialization::serializer temp_s;
-				temp_s.deserialize<serialization::decode_from_format>(original, output_file);
+				temp_s.deserialize<serialization::decode_from_format>(original, output_meta_file);
 				uid = original->ID();
 			}
 			core::meta::shader shaderMeta {uid};

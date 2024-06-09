@@ -1,7 +1,13 @@
 SET(INC 
 inc/cli/value.h
+inc/generators/project.hpp
 inc/generators/shader.h
 inc/generators/models.h
 inc/generators/meta.h
 inc/details/spirv.hpp
+
+inc/importers/importer.hpp
+inc/importers/shader.hpp
+inc/importers/meta.hpp
+inc/importers/model.hpp
 )

@@ -16,6 +16,7 @@
 #include "cli/value.h"
 #include "generators/meta.h"
 #include "generators/models.h"
+#include "generators/project.hpp"
 #include "generators/shader.h"
 
 #include "core/resource/cache.hpp"
@@ -381,12 +382,15 @@ int main(int argc, char* argv[]) {
 	assembler::generators::shader shader_gen {};
 	assembler::generators::models model_gen {};
 	assembler::generators::meta meta_gen {};
+	assembler::generators::project project_gen {};
 
 	psl::cli::pack generator_pack {
 	  value<pack> {"shader", "glsl to spir-v compiler", {"shader", "s"}, std::move(shader_gen.pack())},
 	  value<pack> {"model", "model importer", {"models", "g"}, std::move(model_gen.pack())},
 	  value<pack> {"library", "meta library generator", {"library", "l"}, meta_gen.library_pack()},
-	  value<pack> {"meta", "meta file generator", {"meta", "m"}, meta_gen.meta_pack()}};
+	  value<pack> {"meta", "meta file generator", {"meta", "m"}, meta_gen.meta_pack()},
+	  value<pack> {"project", "project file generator", {"project", "p"}, project_gen.pack()},
+	};
 
 	psl::cli::pack root {
 	  value<bool> {"exit", "quits the application", {"exit", "quit", "q"}, false},

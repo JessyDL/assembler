@@ -66,8 +66,8 @@ class shader {
 		for(size_t n = 2; n <= 4; ++n) {
 			for(size_t m = 2; m <= 4; ++m) {
 				for(auto const& vType : vectoral_types) {
-					psl::string fulltype = vType.first + ("mat") + psl::from_string8_t(psl::utility::to_string(n)) + ("x") +
-										   psl::from_string8_t(psl::utility::to_string(m));
+					psl::string fulltype = vType.first + ("mat") + psl::from_string8_t(psl::utility::to_string(n)) +
+										   ("x") + psl::from_string8_t(psl::utility::to_string(m));
 					size_t size			   = vType.second * n * m;
 					m_KnownTypes[fulltype] = size;
 				}
@@ -100,17 +100,18 @@ class shader {
 			"types", "graphics types to support", {"types"}, {"vulkan", "gles"}, true, {{"vulkan", "gles"}}}};
 	}
 
+	bool generate(assembler::pathstring ifile,
+				  assembler::pathstring ofile,
+				  bool compiled_glsl,
+				  bool optimize,
+				  psl::array<psl::string> types);
+
   private:
 	bool parse(file_data& data);
 	bool cache_file(psl::string const& file);
 
 	psl::string construct(file_data const& fdata, std::set<psl::string_view>& includes) const;
 
-	bool generate(assembler::pathstring ifile,
-				  assembler::pathstring ofile,
-				  bool compiled_glsl,
-				  bool optimize,
-				  psl::array<psl::string> types);
 	void on_generate(psl::cli::pack& pack);
 
 	std::unordered_map<psl::string, file_data> m_Cache;	   // Caches the files read. Note that the filepath

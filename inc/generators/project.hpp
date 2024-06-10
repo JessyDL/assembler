@@ -1,12 +1,13 @@
 #pragma once
 #include "cli/value.h"
 #include "psl/ustring.hpp"
+#include <filesystem>
 
 #include "psl/serialization/property.hpp"
 #include "psl/serialization/serializer.hpp"
 
-namespace assembler {
-class pathstring;
+namespace assembler::data {
+class project_t;
 }	 // namespace assembler
 
 namespace assembler::generators {
@@ -26,6 +27,7 @@ class project {
 	}
 
   private:
+	void generate_resource_library(std::filesystem::path path, assembler::data::project_t const& project);
 	void on_generate(psl::cli::pack& pack);
 	psl::string m_ProjectFile {};
 };

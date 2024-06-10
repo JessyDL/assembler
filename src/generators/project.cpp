@@ -15,7 +15,141 @@
 
 #include <future>
 
+std::uint64_t get_file_time(std::filesystem::path const& path) {
+	return std::filesystem::last_write_time(path).time_since_epoch().count();
+}
+
 namespace assembler::generators {
+void project::generate_resource_library(std::filesystem::path path, assembler::data::project_t const& project) {
+	struct metalib_entry_t {
+		std::filesystem::path path;
+		std::uint64_t time;
+	};
+
+	struct metafile_pair_t {
+		std::filesystem::path meta;
+		std::filesystem::path data;
+		std::uint64_t meta_time;
+		std::uint64_t data_time;
+		psl::UID uid;
+	};
+
+	auto const metalib_dir = std::filesystem::absolute(path.parent_path());
+	if(!std::filesystem::exists(metalib_dir)) {
+		std::filesystem::create_directories(metalib_dir);
+	}
+	psl::serialization::serializer s;
+
+	// using filesystem get all files in the buildDir that have the extension .meta
+	psl::array<metafile_pair_t> files {};
+
+	auto extension = "." + psl::meta::META_EXTENSION;
+	auto buildDir  = std::filesystem::absolute(std::filesystem::path {project.project_directory()} /
+											   std::filesystem::path {project.build_directory()});
+	for(auto& p : std::filesystem::recursive_directory_iterator(buildDir)) {
+		// todo: what to do with files who have no pair?
+		if(p.path().extension() == ".meta") {
+			auto relative_path = std::filesystem::relative(p.path(), metalib_dir);
+			auto data_path	   = std::filesystem::path {relative_path}.replace_extension("");
+
+			if(!std::filesystem::exists(metalib_dir / data_path)) {
+				assembler::log->warn(
+				  "The meta file at '{}' is orphaned. It's accompanying data file could not be found at {}. Skipping..",
+				  relative_path.string(),
+				  data_path.string());
+				continue;
+			}
+
+			psl::meta::file meta {};
+			s.deserialize<psl::serialization::decode_from_format>(meta, p.path().string());
+			psl::UID uid = meta.ID();
+
+			files.push_back({relative_path, data_path, get_file_time(p), get_file_time(metalib_dir / data_path), uid});
+		}
+	}
+
+	psl::meta::metalib metalib {};
+	// todo: figure out a way to update existing metalibs. The biggest issue here is that we have environment dependent
+	//       files which have no idea of their environment themselves.
+	if(false && std::filesystem::exists(path)) {
+		s.deserialize<psl::serialization::decode_from_format>(metalib, path.string());
+	}
+	
+	//// erase all entries that are not present in the files
+	//{
+	//	auto missing_entries_it = std::remove_if(
+	//	  std::begin(metalib.entries.value), std::end(metalib.entries.value), [&files](auto const& entry) {
+	//		  return std::find_if(std::begin(files), std::end(files), [&entry](auto const& file) {
+	//					 return file.uid == entry.id;
+	//				 }) == std::end(files);
+	//	  });
+	//	for(auto const& entry : metalib.entries.value) {
+	//		assembler::log->warn("Found orphaned meta file '{}'. Removing it from the metalib", entry.meta->path.value);
+	//	}
+	//	metalib.entries->erase(missing_entries_it, std::end(metalib.entries.value));
+	//}
+
+	//// fix all entries who have moved
+	//std::for_each(std::begin(metalib.entries.value), std::end(metalib.entries.value), [&files](auto& entry) {
+	//	auto it = std::find_if(std::begin(files), std::end(files), [&entry](auto const& file) {
+	//		return file.uid == entry.id && (file.meta != entry.meta->path || file.data != entry.data->path);
+	//	});
+	//	if(it != std::end(files)) {
+	//		assembler::log->warn(
+	//		  "Found orphaned file '{}' at '{}' and '{}'. Updating it in the metalib to '{}' and '{}'.",
+	//		  entry.id->to_string(),
+	//		  entry.meta->path.value,
+	//		  entry.data->path.value,
+	//		  it->meta.string(),
+	//		  it->data.string());
+	//		entry.meta->path = it->meta.string();
+	//		entry.data->path = it->data.string();
+	//		entry.meta->time = it->meta_time;
+	//		entry.data->time = it->data_time;
+	//	}
+	//});
+	std::unordered_map<psl::string, psl::string> extension_to_environment {};
+	{
+		auto const& default_environments = project.meta_mapping().environments();
+		for(auto const& entry : default_environments) {
+			for(auto const& env : entry.second) {
+				extension_to_environment["." + entry.first] = env;
+			}
+		}
+	}
+	// add all entries that are not present in the metalib
+	std::for_each(
+	  std::begin(files), std::end(files), [&metalib, &s, &metalib_dir, &extension_to_environment](auto const& file) {
+		  auto it = std::find_if(std::begin(metalib.entries.value),
+								 std::end(metalib.entries.value),
+								 [&file](auto const& entry) { return file.uid == entry.id && file.meta == entry.meta->path.value; });
+		  if(it == std::end(metalib.entries.value)) {
+			  psl::format::container data {};
+			  auto meta = psl::meta::file();
+
+			  psl::array<psl::string> environments {};
+
+			  if(auto it = extension_to_environment.find(file.data.extension().string());
+				 it != std::end(extension_to_environment)) {
+				  environments.push_back(it->second);
+			  }
+
+			  s.deserialize<psl::serialization::decode_from_format>(meta, (metalib_dir / file.meta).string());
+			  metalib.entries->push_back(psl::meta::metalib::entry {.id	  = meta.ID(),
+																	.data = {file.data.string(), file.data_time},
+																	.meta = {file.meta.string(), file.meta_time},
+																	.environments = environments});
+		  }
+	  });
+
+
+	psl::format::container cont {};
+	s.serialize<psl::serialization::encode_to_format>(metalib, cont);
+	if(psl::utility::platform::file::write(path.string(), cont.to_string()) == false) {
+		assembler::log->error("Failed to write the metalib file '{}'", path.string());
+		return;
+	}
+}
 void project::on_generate(psl::cli::pack& pack) {
 	auto projectFile	= pathstring {pack["input"]->as<psl::string>().get()}.platform();
 	auto only_models	= pack["models"]->as<bool>().get();
@@ -133,6 +267,8 @@ void project::on_generate(psl::cli::pack& pack) {
 	};
 
 	run_importer(project, files);
+	generate_resource_library(std::filesystem::path(projectDir) / std::filesystem::path(project.library_path()),
+							  project);
 	assembler::log->info("Project generation complete");
 }
 }	 // namespace assembler::generators

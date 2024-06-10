@@ -41,7 +41,8 @@ class shader_cache_t {
 		psl::array<entry_key_t> excludes {};
 		return get_transformed_content(entry, excludes);
 	}
-	auto get_transformed_content(entry_t const& entry, psl::array<entry_key_t>& excludes) -> std::optional<psl::string> {
+	auto get_transformed_content(entry_t const& entry, psl::array<entry_key_t>& excludes)
+	  -> std::optional<psl::string> {
 		psl::string content = entry.content;
 		size_t offset		= 0;
 		for(auto const& include : entry.includes) {
@@ -57,10 +58,10 @@ class shader_cache_t {
 			}
 			excludes.push_back(include.include);
 			auto include_content = get_transformed_content(include_entry.value(), excludes);
-			if (!include_content) {
+			if(!include_content) {
 				assembler::log->error("error processing '{}': could not find the include '{}'.",
-														  entry.path.string(),
-														  include.include.path.string());
+									  entry.path.string(),
+									  include.include.path.string());
 				return std::nullopt;
 			}
 			content.insert(include.index + offset, include_content.value());
@@ -71,7 +72,7 @@ class shader_cache_t {
 
 	auto get_entry(std::filesystem::path const& key) -> std::optional<entry_t> {
 		auto absolute_path = std::filesystem::absolute(key);
-		auto entry	   = entry_t {absolute_path};
+		auto entry		   = entry_t {absolute_path};
 		auto it			   = m_Entries.find(entry);
 		if(it == m_Entries.end()) {
 			auto data	  = psl::utility::platform::file::read(absolute_path.string()).value_or("");
@@ -138,7 +139,7 @@ class shader_cache_t {
 			  entry.path.parent_path() /
 			  std::filesystem::path(entry.content.substr(include_start, include_end - include_start)));
 
-			auto include_entry	 = get_entry(include_path);
+			auto include_entry = get_entry(include_path);
 			if(!include_entry) {
 				auto line_number = std::count(entry.content.begin(), entry.content.begin() + pos_include, '\n');
 				assembler::log->error("error processing '{}': could not find the include '{}' at line {}.",
@@ -247,9 +248,6 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 		return {false};
 	}
 
-	importer_result_t result {true};
-	auto output_file = rebase_to_build_dir(file);
-
 	auto write_output = [](std::filesystem::path const& file, auto const& srcData, psl::string_view extension) {
 		auto output_file = file;
 		output_file.replace_extension(output_file.extension().string() + extension);
@@ -260,12 +258,46 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 		return std::make_unique<write_file_t>(output_file, byte_view);
 	};
 
+	// simple utility script to get the UID from the meta file, or returns a nullopt if it doesn't exist
+	auto get_uid = [](std::filesystem::path const& file) -> std::optional<psl::UID> {
+		auto meta_path = file;
+		meta_path.replace_extension(file.extension().string() + ".meta");
+		if(!std::filesystem::exists(meta_path))
+			return std::nullopt;
+
+		psl::meta::file* original = nullptr;
+		psl::serialization::serializer temp_s;
+		temp_s.deserialize<psl::serialization::decode_from_format>(original, meta_path.string());
+		return original->ID();
+	};
+
+	auto shader_meta_for = [&file, &get_uid, &write_output](std::filesystem::path output_file,
+															auto const& compiled_result,
+															psl::string_view extension) {
+		output_file.replace_extension(output_file.extension().string() + extension);
+		auto uid		= get_uid(output_file).value_or(get_uid(file).value_or(psl::UID::generate()));
+		auto shaderMeta = core::meta::shader {uid};
+		shaderMeta.inputs(compiled_result.shader.inputs);
+		shaderMeta.outputs(compiled_result.shader.outputs);
+		shaderMeta.descriptors(compiled_result.shader.descriptors);
+		shaderMeta.stage(compiled_result.shader.stage);
+		psl::serialization::serializer s;
+		psl::format::container container;
+		s.serialize<psl::serialization::encode_to_format>(&shaderMeta, container);
+		return write_output(output_file, container.to_string(), "." + psl::meta::META_EXTENSION);
+	};
+
+	importer_result_t result {true};
+	auto output_file = rebase_to_build_dir(file);
+
+
 	if(is_backend_enabled("vulkan")) {
 		if(compiled_result.spirv.empty()) {
 			assembler::log->error("error processing '{}': could not compile the shader to spirv.", file.string());
 			return {false};
 		}
 		result.add(write_output(output_file, compiled_result.spirv, ".spv"));
+		result.add(shader_meta_for(output_file, compiled_result, ".spv"));
 	}
 
 	if(is_backend_enabled("gles")) {
@@ -274,6 +306,7 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 			return {false};
 		}
 		result.add(write_output(output_file, compiled_result.gles, ".gles"));
+		result.add(shader_meta_for(output_file, compiled_result, ".gles"));
 	}
 
 #if defined(AS_ENABLE_WGSL)
@@ -300,32 +333,9 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 		}
 		auto wgsl = tintWgslRes.Move();
 		result.add(write_output(output_file, wgsl.wgsl, ".wgsl"));
+		result.add(shader_meta_for(output_file, compiled_result, ".wgsl"));
 	}
 #endif
-	// simple utility script to get the UID from the meta file, or returns a nullopt if it doesn't exist
-	auto get_uid = [](std::filesystem::path const& file) -> std::optional<psl::UID> {
-		auto meta_path = file;
-		meta_path.replace_extension(file.extension().string() + ".meta");
-		if(!std::filesystem::exists(meta_path))
-			return std::nullopt;
-
-		psl::meta::file* original = nullptr;
-		psl::serialization::serializer temp_s;
-		temp_s.deserialize<psl::serialization::decode_from_format>(original, meta_path.string());
-		return original->ID();
-	};
-	if(compiled_result.shader.stage != core::gfx::shader_stage {0} && !result.empty()) {
-		auto uid		= get_uid(output_file).value_or(get_uid(file).value_or(psl::UID::generate()));
-		auto shaderMeta = core::meta::shader {uid};
-		shaderMeta.inputs(compiled_result.shader.inputs);
-		shaderMeta.outputs(compiled_result.shader.outputs);
-		shaderMeta.descriptors(compiled_result.shader.descriptors);
-		shaderMeta.stage(compiled_result.shader.stage);
-		psl::serialization::serializer s;
-		psl::format::container container;
-		s.serialize<psl::serialization::encode_to_format>(&shaderMeta, container);
-		result.add(write_output(output_file, container.to_string(), ".meta"));
-	}
 	return result;
 }
 }	 // namespace assembler::importer

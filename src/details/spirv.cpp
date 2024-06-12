@@ -120,6 +120,7 @@ bool reflect_spirv(glsl_compile_result_t& result) {
 			descriptor.set(module.get_decoration(value.id, spv::DecorationDescriptorSet));
 			descriptor.binding(module.get_decoration(value.id, spv::DecorationBinding));
 			descriptor.qualifier(qualifier(module, value.id));
+
 			auto const& type = module.get_type(value.type_id);
 			using base_type	 = spirv_cross::SPIRType::BaseType;
 
@@ -177,6 +178,21 @@ bool reflect_spirv(glsl_compile_result_t& result) {
 				  fmt::format("reflection error, unknown descriptor type {}", std::to_underlying(type.basetype)), true);
 				return {};
 			}
+
+			// next up parse all members
+			// todo: finish this up, we should recursively parse the members of the struct
+			// see issue: https://github.com/JessyDL/assembler/issues/6
+			psl::array<core::meta::shader::member> members {};
+			for(auto const& member_type : type.member_types) {
+				auto const& member_type_info = module.get_type(member_type);
+				auto& member				 = members.emplace_back();
+				auto size = module.get_declared_struct_size(member_type_info);
+				member.name(module.get_member_name(value.type_id, value.id));
+				member.stride(module.get_declared_struct_size(member_type_info));
+				member.count(1);
+				member.offset(0);
+			}
+			descriptor.members(std::move(members));
 		}
 		return descriptors;
 	};

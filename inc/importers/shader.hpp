@@ -1,5 +1,6 @@
 #pragma once
 #include "importers/importer.hpp"
+#include "details/shader_cache.hpp"
 
 namespace assembler::importer {
 class shader_t : public importer_base_t {
@@ -9,5 +10,6 @@ class shader_t : public importer_base_t {
 	private:
 		bool m_Optimize {false};
 		size_t m_GlesVersion {310};
+		details::shader_cache_t m_ShaderCache;
 };
 }	 // namespace assembler::importer

@@ -5,6 +5,7 @@ src/generators/project.cpp
 src/generators/shader.cpp
 src/generators/models.cpp
 src/details/spirv.cpp
+src/details/shader_cache.cpp
 
 src/importers/importer.cpp
 src/importers/shader.cpp

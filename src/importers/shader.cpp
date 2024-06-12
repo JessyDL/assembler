@@ -1,7 +1,6 @@
 #include "importers/shader.hpp"
 
 #include "details/spirv.hpp"
-#include <chrono>
 #include <filesystem>
 
 #include "stdafx.h"
@@ -12,178 +11,6 @@
 	#include "tint/tint.h"
 #endif
 
-class shader_cache_t {
-	struct entry_key_t {
-		std::filesystem::path path;
-
-		operator std::filesystem::path() const { return path; }
-		bool operator==(entry_key_t const& rhs) const { return path == rhs.path; }
-	};
-	struct entry_t : public entry_key_t {
-		struct include_t {
-			entry_key_t include;
-			size_t index;
-
-			bool operator==(include_t const& rhs) const { return include.path == rhs.include.path; }
-			bool operator==(entry_key_t const& rhs) const { return include.path == rhs.path; }
-		};
-		std::chrono::time_point<std::chrono::system_clock> last_modified;
-
-		psl::string content;
-		psl::array<include_t> includes {};
-	};
-
-	struct hash_entry_t {
-		size_t operator()(entry_key_t const& entry) const { return std::hash<std::filesystem::path> {}(entry.path); }
-	};
-
-	auto get_transformed_content(entry_t const& entry) -> std::optional<psl::string> {
-		psl::array<entry_key_t> excludes {};
-		return get_transformed_content(entry, excludes);
-	}
-	auto get_transformed_content(entry_t const& entry, psl::array<entry_key_t>& excludes)
-	  -> std::optional<psl::string> {
-		psl::string content = entry.content;
-		size_t offset		= 0;
-		for(auto const& include : entry.includes) {
-			if(std::find(std::begin(excludes), std::end(excludes), include.include) != std::end(excludes)) {
-				continue;
-			}
-			auto include_entry = get_entry(include.include);
-			if(!include_entry) {
-				assembler::log->error("error processing '{}': could not find the include '{}'.",
-									  entry.path.string(),
-									  include.include.path.string());
-				return std::nullopt;
-			}
-			excludes.push_back(include.include);
-			auto include_content = get_transformed_content(include_entry.value(), excludes);
-			if(!include_content) {
-				assembler::log->error("error processing '{}': could not find the include '{}'.",
-									  entry.path.string(),
-									  include.include.path.string());
-				return std::nullopt;
-			}
-			content.insert(include.index + offset, include_content.value());
-			offset += include_content.value().size();
-		}
-		return content;
-	}
-
-	auto get_entry(std::filesystem::path const& key) -> std::optional<entry_t> {
-		auto absolute_path = std::filesystem::absolute(key);
-		auto entry		   = entry_t {absolute_path};
-		auto it			   = m_Entries.find(entry);
-		if(it == m_Entries.end()) {
-			auto data	  = psl::utility::platform::file::read(absolute_path.string()).value_or("");
-			entry.content = data;
-			entry.last_modified =
-			  std::chrono::clock_cast<std::chrono::system_clock>(std::filesystem::last_write_time(absolute_path));
-
-			if(!parse_includes(entry))
-				return std::nullopt;
-
-			m_Entries.insert(entry);
-			return entry;
-		}
-		return *it;
-	}
-
-	auto parse_includes(entry_t& entry) -> bool {
-		auto pos_include = entry.content.find("#include");
-
-		while(pos_include != psl::string::npos) {
-			auto pos_next_token = entry.content.find_first_of("\"'`\n", pos_include);
-			if(pos_next_token == psl::string::npos) {
-				auto line_number = std::count(entry.content.begin(), entry.content.begin() + pos_include, '\n');
-				assembler::log->error(
-				  "error processing '{}': could not deduce the #include path at line {}, unexpected end of file",
-				  entry.path.string(),
-				  line_number);
-				return false;
-			} else if(entry.content[pos_next_token] == '\n') {
-				auto line_number = std::count(entry.content.begin(), entry.content.begin() + pos_include, '\n');
-				assembler::log->error(
-				  "error processing '{}': could not deduce the #include path at line {}, unexpected newline (expected "
-				  "either '\"', ''', or '`')",
-				  entry.path.string(),
-				  line_number);
-				return false;
-			}
-
-			auto include_token = entry.content[pos_next_token];
-
-			auto include_start = pos_next_token + 1;
-			// we don't allow for multi-line includes, so we include it in the search so we can break if it's not found
-			auto include_end = entry.content.find(include_token, include_start);
-			auto end_of_line = entry.content.find('\n', include_start);
-			if(include_end == psl::string::npos) {
-				auto line_number = std::count(entry.content.begin(), entry.content.begin() + pos_include, '\n');
-				assembler::log->error(
-				  "error processing '{}': could not deduce the #include path at line {}, unexpected end of file",
-				  entry.path.string(),
-				  line_number);
-				return false;
-			} else if(end_of_line <= include_end) {
-				auto line_number = std::count(entry.content.begin(), entry.content.begin() + pos_include, '\n');
-				assembler::log->error(
-				  "error processing '{}': could not deduce the #include path at line {}, unexpected end of include "
-				  "(expected '{}'). note that multi-line includes are not supported.",
-				  entry.path.string(),
-				  line_number,
-				  include_token);
-				return false;
-			}
-
-			auto include_path = std::filesystem::absolute(
-			  entry.path.parent_path() /
-			  std::filesystem::path(entry.content.substr(include_start, include_end - include_start)));
-
-			auto include_entry = get_entry(include_path);
-			if(!include_entry) {
-				auto line_number = std::count(entry.content.begin(), entry.content.begin() + pos_include, '\n');
-				assembler::log->error("error processing '{}': could not find the include '{}' at line {}.",
-									  entry.path.string(),
-									  include_path.string(),
-									  line_number);
-				return false;
-			}
-			entry.content.erase(pos_include, (include_end + 1) - pos_include);
-			entry.includes.push_back({include_path, pos_include});
-
-			pos_include = entry.content.find("#include", pos_include);
-		}
-
-		return true;
-	}
-
-  public:
-	auto get(std::filesystem::path const& path) -> std::optional<psl::string> {
-		auto absolute_path = std::filesystem::absolute(path);
-		auto key		   = entry_t {absolute_path};
-		auto it			   = m_Entries.find(key);
-		if(it == m_Entries.end()) {
-			auto entry	  = entry_t {absolute_path};
-			auto data	  = psl::utility::platform::file::read(absolute_path.string()).value_or("");
-			entry.content = data;
-			entry.last_modified =
-			  std::chrono::clock_cast<std::chrono::system_clock>(std::filesystem::last_write_time(absolute_path));
-
-			if(!parse_includes(entry))
-				return {};
-
-			m_Entries.insert(entry);
-			return get_transformed_content(entry);
-		}
-		return get_transformed_content(*it);
-	}
-
-  private:
-	std::unordered_set<entry_t, hash_entry_t> m_Entries;
-};
-
-// todo: this should be part of the shader_t importer
-shader_cache_t shader_cache;
 
 tools::shader_stage_t shader_stage_from_extension(psl::string_view extension) {
 	if(extension == ".vert")
@@ -216,7 +43,7 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 		return {false};
 	}
 
-	auto entry = shader_cache.get(file);
+	auto entry = m_ShaderCache.get(file);
 	if(!entry) {
 		assembler::log->error("error processing '{}': could not read the file, or it has no content.", file.string());
 		return {false};

@@ -75,15 +75,8 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 		return {false};
 	}
 
-	auto write_output = [](std::filesystem::path const& file, auto const& srcData, psl::string_view extension) {
-		auto output_file = file;
-		output_file.replace_extension(output_file.extension().string() + extension);
-		auto size_of_element = sizeof(decltype(srcData[0]));
-		psl::array<std::byte> byte_view {(std::byte*)srcData.data(),
-										 (std::byte*)srcData.data() +
-										   (srcData.size() * size_of_element / sizeof(std::byte))};
-		return std::make_unique<write_file_t>(output_file, byte_view);
-	};
+	importer_result_t result {true};
+	auto output_file = rebase_to_build_dir(file);
 
 	// simple utility script to get the UID from the meta file, or returns a nullopt if it doesn't exist
 	auto get_uid = [](std::filesystem::path const& file) -> std::optional<psl::UID> {
@@ -98,11 +91,25 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 		return original->ID();
 	};
 
-	auto shader_meta_for = [&file, &get_uid, &write_output](std::filesystem::path output_file,
-															auto const& compiled_result,
-															psl::string_view extension) {
-		output_file.replace_extension(output_file.extension().string() + extension);
-		auto uid		= get_uid(output_file).value_or(get_uid(file).value_or(psl::UID::generate()));
+	auto shader_meta_string_for = [&get_uid](std::filesystem::path file,
+											 std::filesystem::path output_file,
+											 auto const& compiled_result,
+											 psl::array<psl::string_view> extensions) {
+		psl::array<std::filesystem::path> meta_files {};
+		meta_files.emplace_back(file.replace_extension(file.extension().string() + "." + psl::meta::META_EXTENSION));
+		for(auto const& extension : extensions) {
+			meta_files.emplace_back(output_file.replace_extension(output_file.extension().string() + extension));
+		}
+
+		auto uid = [&meta_files, &get_uid]() -> psl::UID {
+			for(auto const& meta_file : meta_files) {
+				auto uid = get_uid(meta_file);
+				if(uid.has_value()) {
+					return uid.value();
+				}
+			}
+			return psl::UID::generate();
+		}();
 		auto shaderMeta = core::meta::shader {uid};
 		shaderMeta.inputs(compiled_result.shader.inputs);
 		shaderMeta.outputs(compiled_result.shader.outputs);
@@ -111,20 +118,40 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 		psl::serialization::serializer s;
 		psl::format::container container;
 		s.serialize<psl::serialization::encode_to_format>(&shaderMeta, container);
-		return write_output(output_file, container.to_string(), "." + psl::meta::META_EXTENSION);
+		return container.to_string();
+	};
+	auto meta_string = shader_meta_string_for(file, output_file, compiled_result, {".spv", ".gles", ".wgsl"});
+
+	auto write_meta_output = [&meta_string, &result](std::filesystem::path const& file) {
+		auto output_meta_file = file;
+		output_meta_file.replace_extension(file.extension().string() + "." + psl::meta::META_EXTENSION);
+		auto size_of_element = sizeof(decltype(meta_string[0]));
+		psl::array<std::byte> byte_view {(std::byte*)meta_string.data(),
+										 (std::byte*)meta_string.data() +
+										   (meta_string.size() * size_of_element / sizeof(std::byte))};
+		result.add(std::make_unique<write_file_t>(output_meta_file, byte_view));
 	};
 
-	importer_result_t result {true};
-	auto output_file = rebase_to_build_dir(file);
+	write_meta_output(file);
 
+	auto write_output = [&write_meta_output,
+						 &result](std::filesystem::path const& file, auto const& srcData, psl::string_view extension) {
+		auto output_file = file;
+		output_file.replace_extension(output_file.extension().string() + extension);
+		auto size_of_element = sizeof(decltype(srcData[0]));
+		psl::array<std::byte> byte_view {(std::byte*)srcData.data(),
+										 (std::byte*)srcData.data() +
+										   (srcData.size() * size_of_element / sizeof(std::byte))};
+		result.add(std::make_unique<write_file_t>(output_file, byte_view));
+		write_meta_output(output_file);
+	};
 
 	if(is_backend_enabled("vulkan")) {
 		if(compiled_result.spirv.empty()) {
 			assembler::log->error("error processing '{}': could not compile the shader to spirv.", file.string());
 			return {false};
 		}
-		result.add(write_output(output_file, compiled_result.spirv, ".spv"));
-		result.add(shader_meta_for(output_file, compiled_result, ".spv"));
+		write_output(output_file, compiled_result.spirv, ".spv");
 	}
 
 	if(is_backend_enabled("gles")) {
@@ -132,8 +159,7 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 			assembler::log->error("error processing '{}': could not compile the shader to gles.", file.string());
 			return {false};
 		}
-		result.add(write_output(output_file, compiled_result.gles, ".gles"));
-		result.add(shader_meta_for(output_file, compiled_result, ".gles"));
+		write_output(output_file, compiled_result.gles, ".gles");
 	}
 
 #if defined(AS_ENABLE_WGSL)
@@ -159,8 +185,7 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 			return false;
 		}
 		auto wgsl = tintWgslRes.Move();
-		result.add(write_output(output_file, wgsl.wgsl, ".wgsl"));
-		result.add(shader_meta_for(output_file, compiled_result, ".wgsl"));
+		write_output(output_file, wgsl.wgsl, ".wgsl");
 	}
 #endif
 	return result;

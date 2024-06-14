@@ -347,7 +347,7 @@ int main(int argc, char* argv[]) {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
 
-	core::initialize_loggers();
+	core::initialize_loggers(false);
 
 	assembler::log = std::make_shared<spdlog::logger>("", std::make_shared<spdlog::sinks::stdout_color_sink_st>());
 	assembler::log->set_pattern("%v");

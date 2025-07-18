@@ -7,7 +7,11 @@ include(FetchContent)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-option(AS_ENABLE_WGSL "Enable WGSL support" ON)
+option(AS_ENABLE_WGSL "Enable WGSL support" OFF) # Currently broken, a build issue with spirv-tools or caused by tint being built as a standalone/non-gclient based build.
+
+set(CMAKE_CXX_EXTENSIONS OFF )
+set(CXX_EXTENSIONS OFF )
+set(CMAKE_CXX_STANDARD 23)
 
 # -------------------------------------------------------------------------------------------------
 # Paradigm Engine setup

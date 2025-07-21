@@ -3,14 +3,14 @@
 
 #include "psl/array.hpp"
 #include "psl/array_view.hpp"
-#include "psl/ustring.hpp"
 #include "psl/string_utils.hpp"
+#include "psl/ustring.hpp"
 
 #include <SPIRV/GlslangToSpv.h>
-#include <spirv_reflect.hpp>
-#include <spirv_glsl.hpp>
 #include <glslang/Include/glslang_c_interface.h>
 #include <glslang/Public/resource_limits_c.h>
+#include <spirv_glsl.hpp>
+#include <spirv_reflect.hpp>
 tools::_internal::glslang_manager_t tools::_internal::glslang_manager {};
 
 namespace tools {
@@ -43,7 +43,7 @@ constexpr glslang_stage_t get_stage(shader_stage_t stage) {
 }
 
 bool reflect_spirv(glsl_compile_result_t& result) {
-	auto spirv_data = (const uint32_t*)result.spirv.data();
+	auto spirv_data = (uint32_t const*)result.spirv.data();
 	auto spirv_size = result.spirv.size() / sizeof(uint32_t);
 	spirv_cross::CompilerReflection module(spirv_data, spirv_size);
 	auto const& resources = module.get_shader_resources();
@@ -88,7 +88,7 @@ bool reflect_spirv(glsl_compile_result_t& result) {
 			}
 		}
 
-		std::sort(std::begin(attributes), std::end(attributes), [](const auto& l, const auto& r) {
+		std::sort(std::begin(attributes), std::end(attributes), [](auto const& l, auto const& r) {
 			return l.location() < r.location();
 		});
 		return attributes;
@@ -179,18 +179,45 @@ bool reflect_spirv(glsl_compile_result_t& result) {
 				return {};
 			}
 
+			auto decode_member = [&](spirv_cross::CompilerReflection const& module,
+									 spirv_cross::SPIRType const& type,
+									 uint32_t i,
+									 auto& recursiveFn) -> core::meta::shader::member {
+				auto const& member_type_id = type.member_types[i];
+				auto const& member_type	   = module.get_type(member_type_id);
+				auto member_name		   = module.get_member_name(type.self, i);
+				uint32_t offset			   = module.get_member_decoration(type.self, i, spv::DecorationOffset);
+
+				uint32_t stride = 0;
+				if(member_type.array.size() > 0) {
+					stride = module.type_struct_member_array_stride(type, i);
+				} else if(member_type.columns > 1) {
+					stride = module.type_struct_member_matrix_stride(type, i);
+				} else {
+					stride = module.get_declared_struct_member_size(type, i);
+				}
+
+				core::meta::shader::member member {};
+				member.name(member_name);
+				member.stride(stride);
+				member.count(member_type.array.size() > 0 ? member_type.array[0] : member_type.columns);
+				member.offset(offset);
+
+				// if the member is a struct, we need to recursively decode it
+				if(member_type.basetype == spirv_cross::SPIRType::BaseType::Struct) {
+					psl::array<core::meta::shader::member> members {};
+					for(auto i = 0; i < member_type.member_types.size(); ++i) {
+						members.emplace_back(recursiveFn(module, member_type, uint32_t(i), recursiveFn));
+					}
+					member.members(std::move(members));
+				}
+				return member;
+			};
+
 			// next up parse all members
-			// todo: finish this up, we should recursively parse the members of the struct
-			// see issue: https://github.com/JessyDL/assembler/issues/6
 			psl::array<core::meta::shader::member> members {};
-			for(auto const& member_type : type.member_types) {
-				auto const& member_type_info = module.get_type(member_type);
-				auto& member				 = members.emplace_back();
-				auto size = module.get_declared_struct_size(member_type_info);
-				member.name(module.get_member_name(value.type_id, value.id));
-				member.stride(module.get_declared_struct_size(member_type_info));
-				member.count(1);
-				member.offset(0);
+			for(auto i = 0; i < type.member_types.size(); ++i) {
+				members.emplace_back(decode_member(module, type, uint32_t(i), decode_member));
 			}
 			descriptor.members(std::move(members));
 		}
@@ -239,9 +266,10 @@ bool reflect_spirv(glsl_compile_result_t& result) {
 	return result;
 }
 
-bool compileShaderToSPIRV_Vulkan(glslang_stage_t stage, char const* shaderSource, tools::glsl_compile_result_t
-& result) {
-	const glslang_input_t input = {
+bool compileShaderToSPIRV_Vulkan(glslang_stage_t stage,
+								 char const* shaderSource,
+								 tools::glsl_compile_result_t& result) {
+	glslang_input_t const input = {
 	  .language							 = GLSLANG_SOURCE_GLSL,
 	  .stage							 = stage,
 	  .client							 = GLSLANG_CLIENT_VULKAN,
@@ -260,18 +288,20 @@ bool compileShaderToSPIRV_Vulkan(glslang_stage_t stage, char const* shaderSource
 	glslang_shader_t* shader = glslang_shader_create(&input);
 
 	if(!glslang_shader_preprocess(shader, &input)) {
-		result.messages.emplace_back(fmt::format("preprocessing failure: {}\n{}", glslang_shader_get_info_log(shader),
-															 glslang_shader_get_info_debug_log(shader)),
-												 true);
+		result.messages.emplace_back(fmt::format("preprocessing failure: {}\n{}",
+												 glslang_shader_get_info_log(shader),
+												 glslang_shader_get_info_debug_log(shader)),
+									 true);
 		glslang_shader_delete(shader);
 		return false;
 	}
 
 	if(!glslang_shader_parse(shader, &input)) {
-		result.messages.emplace_back(fmt::format("compilation failure: {}\n{}\n{}", glslang_shader_get_info_log(shader),
+		result.messages.emplace_back(fmt::format("compilation failure: {}\n{}\n{}",
+												 glslang_shader_get_info_log(shader),
 												 glslang_shader_get_info_debug_log(shader),
 												 glslang_shader_get_preprocessed_code(shader)),
-															 true);
+									 true);
 		glslang_shader_delete(shader);
 		return false;
 	}
@@ -280,9 +310,10 @@ bool compileShaderToSPIRV_Vulkan(glslang_stage_t stage, char const* shaderSource
 	glslang_program_add_shader(program, shader);
 
 	if(!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT)) {
-		result.messages.emplace_back(fmt::format("linking failure: {}\n{}", glslang_program_get_info_log(program),
-															 glslang_program_get_info_debug_log(program)),
-															 true);
+		result.messages.emplace_back(fmt::format("linking failure: {}\n{}",
+												 glslang_program_get_info_log(program),
+												 glslang_program_get_info_debug_log(program)),
+									 true);
 		glslang_program_delete(program);
 		glslang_shader_delete(shader);
 		return false;
@@ -293,7 +324,7 @@ bool compileShaderToSPIRV_Vulkan(glslang_stage_t stage, char const* shaderSource
 	glslang_program_SPIRV_get(program, (uint32_t*)(result.spirv.data()));
 
 	char const* spirv_messages = glslang_program_SPIRV_get_messages(program);
-	if (spirv_messages) {
+	if(spirv_messages) {
 		result.messages.emplace_back(spirv_messages, false);
 	}
 
@@ -302,7 +333,7 @@ bool compileShaderToSPIRV_Vulkan(glslang_stage_t stage, char const* shaderSource
 
 	return true;
 }
-	glsl_compile_result_t
+glsl_compile_result_t
 glsl_compile(psl::string_view source, shader_stage_t type, bool optimize, std::optional<size_t> gles_version) {
 	auto const stage = get_stage(type);
 	glsl_compile_result_t result {true};
@@ -311,13 +342,14 @@ glsl_compile(psl::string_view source, shader_stage_t type, bool optimize, std::o
 		result.success = false;
 		return result;
 	}
-	if (!compileShaderToSPIRV_Vulkan(stage, source.data(), result)) {
+	if(!compileShaderToSPIRV_Vulkan(stage, source.data(), result)) {
 		result.success = false;
 		return result;
 	}
 
 	if(gles_version) {
-		spirv_cross::CompilerGLSL gles_compiler((const uint32_t*)result.spirv.data(), result.spirv.size() / sizeof(uint32_t));
+		spirv_cross::CompilerGLSL gles_compiler((uint32_t const*)result.spirv.data(),
+												result.spirv.size() / sizeof(uint32_t));
 
 		spirv_cross::CompilerGLSL::Options options;
 		options.version = gles_version.value();
@@ -327,10 +359,17 @@ glsl_compile(psl::string_view source, shader_stage_t type, bool optimize, std::o
 		result.gles = gles_compiler.compile();
 	}
 
-	if(!reflect_spirv(result)) {
+	try {
+		if(!reflect_spirv(result)) {
+			result.success = false;
+			result.shader  = {};
+			result.messages.emplace_back("Reflection failure", true);
+			return result;
+		}
+	} catch(spirv_cross::CompilerError e) {
 		result.success = false;
 		result.shader  = {};
-		return result;
+		result.messages.emplace_back(e.what(), true);
 	}
 	return result;
 }

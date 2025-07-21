@@ -66,7 +66,7 @@ set_target_properties(
     PROPERTIES FOLDER "extern")
 
 if(AS_ENABLE_WGSL)
-    set(DAWN_FETCH_DEPENDENCIES ON) # use manual method so we don't want to pull in depot_tools
+    set(DAWN_FETCH_DEPENDENCIES ON)
 
     set(TINT_BUILD_SPV_READER ON)
     set(TINT_BUILD_SPV_WRITER ON)
@@ -103,22 +103,30 @@ if(AS_ENABLE_WGSL)
 
     set(SKIP_SPIRV_TOOLS_INSTALL OFF)
 
+    message(STATUS "Fetching Dawn. Note this will take a long time for the initial setup due to the size of Dawn.")
+
+    # it takes a long time to fetch dawn, although not perfect we will loudly log everything so a user can see it progressing
+    set(STORED_FETCHCONTENT_QUIET ${FETCHCONTENT_QUIET})
+    set(FETCHCONTENT_QUIET FALSE)
     
     # some of the understandings in making this work are from https://github.com/eliemichel/webgpu-native
-    # after chromium/5931 dawn started having issues with the cmake build and with build times.
+    # repo is now defunct, but the information was mostly which parts to enable/disable, and the fetch behaviour (since removed/refactored)
+    # after chromium/5931 dawn started having issues with the cmake build and with build times, so we only
+    # build the tint part of dawn, which is what we need for WGSL support.
     include(FetchContent)
-
     FetchContent_Declare(
-	dawn
-	DOWNLOAD_COMMAND
-		cd ${FETCHCONTENT_BASE_DIR}/dawn-src &&
-		git init &&
-		git fetch --depth=1 https://dawn.googlesource.com/dawn chromium/7187 &&
-		git reset --hard FETCH_HEAD
+        dawn
+        DOWNLOAD_COMMAND
+		    cd ${FETCHCONTENT_BASE_DIR}/dawn-src &&
+		    git init &&
+		    git fetch --depth=1 https://dawn.googlesource.com/dawn chromium/7187 &&
+		    git reset --hard FETCH_HEAD &&
+            ${Python3_EXECUTABLE} tools/fetch_dawn_dependencies.py -s
+        EXCLUDE_FROM_ALL
     )
-    
     FetchContent_MakeAvailable(dawn)
+    
+    set(FETCHCONTENT_QUIET ${STORED_FETCHCONTENT_QUIET})
 
-    # add_subdirectory(${dawn_SOURCE_DIR} ${dawn_BINARY_DIR} EXCLUDE_FROM_ALL)
-    # target_include_directories(dawn_shared_utils PUBLIC "${CMAKE_BINARY_DIR}/_deps/dawn-src/src")
+    message(STATUS "Dawn now available")
 endif()

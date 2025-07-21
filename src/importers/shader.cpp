@@ -174,14 +174,14 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 		std::memcpy(spirv.data(), compiled_result.spirv.data(), compiled_result.spirv.size());
 		auto spirvReadOption = tint::spirv::reader::Options {};
 		auto tintIr			 = tint::spirv::reader::Read(spirv, spirvReadOption);
-		if(tintIr.Diagnostics().contains_errors()) {
-			assembler::log->error("failed to convert the spirv to tint-ir: {}", tintIr.Diagnostics().str());
+		if(tintIr.Diagnostics().ContainsErrors()) {
+			assembler::log->error("failed to convert the spirv to tint-ir: {}", tintIr.Diagnostics().Str());
 			return false;
 		}
 		auto wgslOptions = tint::wgsl::writer::Options();
 		auto tintWgslRes = tint::wgsl::writer::Generate(tintIr, wgslOptions);
 		if(tintWgslRes != tint::Success) {
-			assembler::log->error("failed to convert the tint-ir to wgsl: {}", tintWgslRes.Failure().reason.str());
+			assembler::log->error("failed to convert the tint-ir to wgsl: {}", tintWgslRes.Failure().reason);
 			return false;
 		}
 		auto wgsl = tintWgslRes.Move();

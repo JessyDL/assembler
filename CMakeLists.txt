@@ -7,7 +7,7 @@ include(FetchContent)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-option(AS_ENABLE_WGSL "Enable WGSL support" OFF) # Currently broken, a build issue with spirv-tools or caused by tint being built as a standalone/non-gclient based build.
+option(AS_ENABLE_WGSL "Enable WGSL support" ON)
 
 set(CMAKE_CXX_EXTENSIONS OFF )
 set(CXX_EXTENSIONS OFF )

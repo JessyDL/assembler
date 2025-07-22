@@ -7,63 +7,7 @@ set(ASSIMP_INJECT_DEBUG_POSTFIX OFF)
 set(ASSIMP_IGNORE_GIT_HASH ON)
 add_subdirectory(assimp)
 
-set(BUILD_TESTING OFF)
-set(ENABLE_GLSLANG_BINARIES ON) # todo: future versions will have glslang-default-resource-limits be integrated into glslang propper so we can then turn this off
-                                # see issue: https://github.com/KhronosGroup/glslang/issues/3064
-set(ENABLE_SPVREMAPPER OFF)
-set(ENABLE_HLSL OFF)
-
-set(SKIP_GLSLANG_INSTALL ON)
-set(ENABLE_AMD_EXTENSIONS ON)
-set(ENABLE_NV_EXTENSIONS ON)
-set(ENABLE_OPT ON)
-set(ENABLE_RTTI ON)
-
-add_subdirectory(glslang)
-
 find_package(Python3)
-
-# if this is the first time we are building glslang, we need to run `update_glslang_sources.py`
-add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/update_glslang_sources.py.timestamp
-  COMMAND ${CMAKE_COMMAND} -E echo "glslang dependencies changed" > ${CMAKE_CURRENT_BINARY_DIR}/update_glslang_sources.py.timestamp
-  COMMAND ${CMAKE_COMMAND} -E echo "Updating glslang sources..."
-  COMMAND ${Python3_EXECUTABLE} ${glslang_SOURCE_DIR}/update_glslang_sources.py
-  WORKING_DIRECTORY ${glslang_SOURCE_DIR}
-  DEPENDS ${glslang_SOURCE_DIR}/update_glslang_sources.py
-)
-
-add_custom_target(UpdateGlslangSources
-    DEPENDS update_glslang_sources.py.timestamp
-)
-
-add_dependencies(glslang
-    UpdateGlslangSources
-)
-
-add_subdirectory(SPIRV-Cross)
-
-set_target_properties(
-    assimp
-    UpdateAssimpLibsDebugSymbolsAndDLLs
-    zlibstatic
-    glslang
-    GenericCodeGen
-    MachineIndependent
-    OSDependent
-    SPIRV
-    glslang-default-resource-limits
-    spirv-cross
-    spirv-cross-c
-    spirv-cross-cpp
-    spirv-cross-reflect
-    spirv-cross-glsl
-    spirv-cross-hlsl
-    spirv-cross-msl
-    spirv-cross-util
-    spirv-cross-core
-    
-    PROPERTIES FOLDER "extern")
 
 if(AS_ENABLE_WGSL)
     set(DAWN_FETCH_DEPENDENCIES ON)
@@ -130,3 +74,58 @@ if(AS_ENABLE_WGSL)
 
     message(STATUS "Dawn now available")
 endif()
+set(BUILD_TESTING OFF)
+set(ENABLE_GLSLANG_BINARIES ON) # todo: future versions will have glslang-default-resource-limits be integrated into glslang propper so we can then turn this off
+                                # see issue: https://github.com/KhronosGroup/glslang/issues/3064
+set(ENABLE_SPVREMAPPER OFF)
+set(ENABLE_HLSL OFF)
+
+set(SKIP_GLSLANG_INSTALL ON)
+set(ENABLE_AMD_EXTENSIONS ON)
+set(ENABLE_NV_EXTENSIONS ON)
+set(ENABLE_OPT ON)
+set(ENABLE_RTTI ON)
+
+add_subdirectory(glslang)
+
+# if this is the first time we are building glslang, we need to run `update_glslang_sources.py`
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/update_glslang_sources.py.timestamp
+    COMMAND ${CMAKE_COMMAND} -E echo "glslang dependencies changed" > ${CMAKE_CURRENT_BINARY_DIR}/update_glslang_sources.py.timestamp
+    COMMAND ${CMAKE_COMMAND} -E echo "Updating glslang sources..."
+    COMMAND ${Python3_EXECUTABLE} ${glslang_SOURCE_DIR}/update_glslang_sources.py
+    WORKING_DIRECTORY ${glslang_SOURCE_DIR}
+    DEPENDS ${glslang_SOURCE_DIR}/update_glslang_sources.py
+)
+
+add_custom_target(UpdateGlslangSources
+    DEPENDS update_glslang_sources.py.timestamp
+)
+
+add_dependencies(glslang
+    UpdateGlslangSources
+)
+
+add_subdirectory(SPIRV-Cross)
+
+set_target_properties(
+    assimp
+    UpdateAssimpLibsDebugSymbolsAndDLLs
+    zlibstatic
+    glslang
+    GenericCodeGen
+    MachineIndependent
+    OSDependent
+    SPIRV
+    glslang-default-resource-limits
+    spirv-cross
+    spirv-cross-c
+    spirv-cross-cpp
+    spirv-cross-reflect
+    spirv-cross-glsl
+    spirv-cross-hlsl
+    spirv-cross-msl
+    spirv-cross-util
+    spirv-cross-core
+    
+    PROPERTIES FOLDER "extern")

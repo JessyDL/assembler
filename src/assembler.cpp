@@ -21,6 +21,7 @@
 
 #include "core/resource/cache.hpp"
 
+#include "core/paradigm.hpp"
 #include "psl/collections/spmc.hpp"
 
 using psl::cli::pack;
@@ -400,9 +401,12 @@ int main(int argc, char* argv[]) {
 						  "",
 						  true,
 						  {{"vulkan", "gles"}}},
-	  value<pack> {"generator", "generator for various data files", {"generate", "g"}, generator_pack}
-
-	};
+	  value<pack> {"generator", "generator for various data files", {"generate", "g"}, generator_pack},
+	  value<pack> {
+		"version", "prints the version information", {"version", "v"}, psl::cli::pack {[](psl::cli::pack& pack) {
+			assembler::log->info("assembler version: {}", AS_VERSION_SHA);
+			assembler::log->info("paradigm version: {}", VERSION);
+		}}}};
 
 	std::thread geditor_thread;
 

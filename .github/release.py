@@ -21,11 +21,21 @@ def get_current_branch():
 def get_last_version_tag():
     try:
         tags = subprocess.check_output(['git', 'tag'], text=True).strip().split('\n')
-        if not tags or tags[0] == '':
+        # Only consider tags matching release/X.Y.Z
+        version_tags = []
+        for t in tags:
+            m = re.match(r'release/(\d+)\.(\d+)\.(\d+)$', t)
+            if m:
+                version_tags.append((t, tuple(int(x) for x in m.groups())))
+        if not version_tags:
             print("No tags found.", file=sys.stderr)
             sys.exit(1)
-        last_tag = sorted(tags, key=lambda t: [int(part) for part in t.split('.')], reverse=True)[0]
-        return last_tag
+        last_tag = sorted(version_tags, key=lambda x: x[1], reverse=True)[0][0]
+        m = re.match(r'release/(\d+\.\d+\.\d+)$', last_tag)
+        if m:
+            return m.group(1)
+        else:
+            raise ValueError("No valid version tag found.")
     except subprocess.CalledProcessError as e:
         print(f"Error getting last version tag: {e}", file=sys.stderr)
         sys.exit(1)

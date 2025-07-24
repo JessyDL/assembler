@@ -110,7 +110,6 @@ add_subdirectory(SPIRV-Cross)
 
 set_target_properties(
     assimp
-    UpdateAssimpLibsDebugSymbolsAndDLLs
     zlibstatic
     glslang
     GenericCodeGen

@@ -13,8 +13,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-            submodules: 'recursive'
-            fetch-depth: 1
+          submodules: 'recursive'
+          fetch-depth: 1
 
       - name: Set up Ninja
         uses: seanmiddleditch/gha-setup-ninja@v4
@@ -46,8 +46,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-            submodules: 'recursive'
-            fetch-depth: 1
+          submodules: 'recursive'
+          fetch-depth: 1
 
       - name: Set up Ninja
         uses: seanmiddleditch/gha-setup-ninja@v4
@@ -58,11 +58,11 @@ jobs:
       - name: Get version
         id: get_version
         run: |
-          $version=$(python ./.github/release.py --version)
-          $sha1=$(python ./.github/release.py --sha1)
-          $version_sha1=$(python ./.github/release.py --version --sha1)
+          version=$(python ./.github/release.py --version)
+          sha1=$(python ./.github/release.py --sha1)
+          version_sha1=$(python ./.github/release.py --version --sha1)
           echo "version=$version" >> $GITHUB_OUTPUT
-          echo "sha1=sha1" >> $GITHUB_OUTPUT
+          echo "sha1=$sha1" >> $GITHUB_OUTPUT
           echo "version_sha1=$version_sha1" >> $GITHUB_OUTPUT
 
       - name: Configure

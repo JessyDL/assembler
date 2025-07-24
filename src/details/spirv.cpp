@@ -13,6 +13,15 @@
 #include <spirv_reflect.hpp>
 tools::_internal::glslang_manager_t tools::_internal::glslang_manager {};
 
+template <typename TargetType>
+constexpr auto narrow_cast(auto v) -> TargetType {
+	if(static_cast<TargetType>(v) != v) {
+		throw std::runtime_error(fmt::format("narrow_cast<{}> failed, value {} is out of range for type {}",
+											 typeid(TargetType).name(), v, typeid(TargetType).name()));
+	}
+	return static_cast<TargetType>(v);
+}
+
 namespace tools {
 namespace _internal {
 	glslang_manager_t::glslang_manager_t() {
@@ -194,7 +203,10 @@ bool reflect_spirv(glsl_compile_result_t& result) {
 				} else if(member_type.columns > 1) {
 					stride = module.type_struct_member_matrix_stride(type, i);
 				} else {
-					stride = module.get_declared_struct_member_size(type, i);
+					// todo(jdl): we should support up-to 64-bit here, but for now we only support 32-bit
+					// which should be "good enough" for now. Luckily we will get a clear exception if we
+					// need a larger size.
+					stride = narrow_cast<uint32_t>(module.get_declared_struct_member_size(type, i));
 				}
 
 				core::meta::shader::member member {};
@@ -352,7 +364,7 @@ glsl_compile(psl::string_view source, shader_stage_t type, bool optimize, std::o
 												result.spirv.size() / sizeof(uint32_t));
 
 		spirv_cross::CompilerGLSL::Options options;
-		options.version = gles_version.value();
+		options.version = narrow_cast<uint32_t>(gles_version.value());
 		options.es		= true;
 		gles_compiler.set_common_options(options);
 

@@ -1,6 +1,8 @@
 import argparse
 import subprocess
 import sys
+import re
+
 
 def get_git_sha1():
     try:

@@ -16,6 +16,7 @@ endif()
 project(${LOCAL_PROJECT} VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 
 include(FetchContent)
+include(CMakeDependentOption)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -25,6 +26,11 @@ set(CMAKE_CXX_EXTENSIONS OFF )
 set(CXX_EXTENSIONS OFF )
 set(CMAKE_CXX_STANDARD 23)
 option(AS_PARADIGM_EXTERNAL "Enable this if you are including this as a sub-project of paradigm" OFF)
+cmake_dependent_option(AS_ENABLE_INSTALL "Enable installation "
+    ON
+    "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR"
+    OFF
+)
 
 # -------------------------------------------------------------------------------------------------
 # Paradigm Engine setup
@@ -35,12 +41,15 @@ if(NOT AS_PARADIGM_EXTERNAL)
 	set(BUILD_SHARED_LIBS OFF)
 	set(PE_TESTS OFF CACHE INTERNAL "" FORCE)
 	set(PE_MAKE_EXE OFF)
-	add_subdirectory(paradigm)
-	
-	get_directory_property(PE_COMPILE_OPTIONS DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS)
-	get_directory_property(PE_COMPILE_OPTIONS_EXE DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS_EXE)
-	get_directory_property(PE_COMPILER_FEATURES DIRECTORY paradigm DEFINITION PE_COMPILER_FEATURES)
-	get_directory_property(PE_DEFINES DIRECTORY paradigm DEFINITION PE_DEFINES)
+
+	FetchContent_Declare(paradigm
+		GIT_REPOSITORY https://github.com/JessyDL/paradigm.git
+		GIT_TAG e58ac8542b2e3d6c4de08b6aba3a78e665f7d93d
+		GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+		GIT_SUBMODULES_RECURSE TRUE
+	)
+	FetchContent_MakeAvailable(paradigm)
 endif()
 add_subdirectory(extern)
 
@@ -52,7 +61,7 @@ include(inc.txt)
 include(src.txt)
 include(generators.txt)
 
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/inc" PREFIX "inc" FILES ${INC}) 
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/inc" PREFIX "inc" FILES ${INC})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${SRC})
 if(NOT AS_PARADIGM_EXTERNAL)
 	source_group(TREE "${paradigm_SOURCE_DIR}/${PARADIGM_ROOT}/core/src" PREFIX "src" FILES ${GENERATOR_INFORMATION})
@@ -64,7 +73,10 @@ if(VS_ADD_NATIVE_VISUALIZERS)
 endif()
 
 add_executable(${LOCAL_PROJECT} ${INC} ${SRC} ${GENERATOR_INFORMATION} ${NATVIS})
-install(TARGETS ${LOCAL_PROJECT} RUNTIME DESTINATION bin)
+
+if(${AS_ENABLE_INSTALL})
+	install(TARGETS ${LOCAL_PROJECT} RUNTIME DESTINATION bin)
+endif()
 
 set_property(TARGET ${LOCAL_PROJECT} PROPERTY FOLDER "tools")
 target_link_libraries(${LOCAL_PROJECT} PUBLIC
@@ -100,6 +112,3 @@ target_compile_definitions(${LOCAL_PROJECT}
 )
 
 message(STATUS "Building ${LOCAL_PROJECT} version ${PROJECT_VERSION} (${GIT_SHA})")
-
-target_compile_features(${LOCAL_PROJECT} PUBLIC ${PE_COMPILER_FEATURES})
-target_compile_options(${LOCAL_PROJECT} PUBLIC ${PE_COMPILE_OPTIONS} ${PE_COMPILE_OPTIONS_EXE})

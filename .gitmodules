@@ -1,6 +1,3 @@
-[submodule "paradigm"]
-	path = paradigm
-	url = https://github.com/JessyDL/paradigm
 [submodule "extern/assimp"]
 	path = extern/assimp
 	url = https://github.com/assimp/assimp

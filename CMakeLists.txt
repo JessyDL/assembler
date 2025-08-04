@@ -24,22 +24,24 @@ option(AS_ENABLE_WGSL "Enable WGSL support" ON)
 set(CMAKE_CXX_EXTENSIONS OFF )
 set(CXX_EXTENSIONS OFF )
 set(CMAKE_CXX_STANDARD 23)
+option(AS_PARADIGM_EXTERNAL "Enable this if you are including this as a sub-project of paradigm" OFF)
 
 # -------------------------------------------------------------------------------------------------
 # Paradigm Engine setup
 # -------------------------------------------------------------------------------------------------
 
-# required call to get the paradigm engine core here, and setting up the compile defines
-set(BUILD_SHARED_LIBS OFF)
-set(PE_TESTS OFF CACHE INTERNAL "" FORCE)
-set(PE_MAKE_EXE OFF)
-add_subdirectory(paradigm)
-
-get_directory_property(PE_COMPILE_OPTIONS DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS)
-get_directory_property(PE_COMPILE_OPTIONS_EXE DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS_EXE)
-get_directory_property(PE_COMPILER_FEATURES DIRECTORY paradigm DEFINITION PE_COMPILER_FEATURES)
-get_directory_property(PE_DEFINES DIRECTORY paradigm DEFINITION PE_DEFINES)
-
+if(NOT AS_PARADIGM_EXTERNAL)
+	# required call to get the paradigm engine core here, and setting up the compile defines
+	set(BUILD_SHARED_LIBS OFF)
+	set(PE_TESTS OFF CACHE INTERNAL "" FORCE)
+	set(PE_MAKE_EXE OFF)
+	add_subdirectory(paradigm)
+	
+	get_directory_property(PE_COMPILE_OPTIONS DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS)
+	get_directory_property(PE_COMPILE_OPTIONS_EXE DIRECTORY paradigm DEFINITION PE_COMPILE_OPTIONS_EXE)
+	get_directory_property(PE_COMPILER_FEATURES DIRECTORY paradigm DEFINITION PE_COMPILER_FEATURES)
+	get_directory_property(PE_DEFINES DIRECTORY paradigm DEFINITION PE_DEFINES)
+endif()
 add_subdirectory(extern)
 
 # -------------------------------------------------------------------------------------------------

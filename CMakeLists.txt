@@ -53,8 +53,10 @@ include(src.txt)
 include(generators.txt)
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/inc" PREFIX "inc" FILES ${INC}) 
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${SRC}) 
-source_group(TREE "${paradigm_SOURCE_DIR}/${PARADIGM_ROOT}/core/src" PREFIX "src" FILES ${GENERATOR_INFORMATION}) 
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "src" FILES ${SRC})
+if(NOT AS_PARADIGM_EXTERNAL)
+	source_group(TREE "${paradigm_SOURCE_DIR}/${PARADIGM_ROOT}/core/src" PREFIX "src" FILES ${GENERATOR_INFORMATION})
+endif()
 
 if(VS_ADD_NATIVE_VISUALIZERS)	
 	file(GLOB_RECURSE NATVIS nvs/*.natvis)
@@ -84,7 +86,7 @@ target_include_directories(${LOCAL_PROJECT}
 
 
 execute_process(
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/.github/release.py --sha1
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/.github/release.py --sha1
 	OUTPUT_VARIABLE GIT_SHA
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )

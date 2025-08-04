@@ -25,6 +25,7 @@ option(AS_ENABLE_WGSL "Enable WGSL support" ON)
 set(CMAKE_CXX_EXTENSIONS OFF )
 set(CXX_EXTENSIONS OFF )
 set(CMAKE_CXX_STANDARD 23)
+option(AS_DEVMODE "Enable this for slightly easier dev experience where the app doesn't auto-shut by default" OFF)
 option(AS_PARADIGM_EXTERNAL "Enable this if you are including this as a sub-project of paradigm" OFF)
 cmake_dependent_option(AS_ENABLE_INSTALL "Enable installation "
     ON
@@ -109,6 +110,7 @@ target_compile_definitions(${LOCAL_PROJECT}
 	PRIVATE
 		AS_VERSION=\"${PROJECT_VERSION}\"
 		AS_VERSION_SHA=\"${PROJECT_VERSION}-${GIT_SHA}\"
+		$<$<BOOL:${AS_DEVMODE}>:AS_DEVMODE>
 )
 
 message(STATUS "Building ${LOCAL_PROJECT} version ${PROJECT_VERSION} (${GIT_SHA})")

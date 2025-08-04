@@ -393,8 +393,16 @@ int main(int argc, char* argv[]) {
 	  value<pack> {"project", "project file generator", {"project", "p"}, project_gen.pack()},
 	};
 
+#if defined(AS_DEVMODE)
+	const auto default_interactive = true;
+#else
+	const auto default_interactive = false;
+#endif
+
 	psl::cli::pack root {
-	  value<bool> {"exit", "quits the application", {"exit", "quit", "q"}, false},
+	  value<bool> {
+		"interactive-mode", "allows continuous commands to be sent", {"interactive", "i"}, default_interactive},
+	  value<bool> {"exit", "quits the application (only when interactive mode is on)", {"exit", "quit", "q"}, false},
 	  value<std::string> {"graphical assembler",
 						  "launches the graphical editor (only one can be created)",
 						  {"geditor", "gassembler"},
@@ -411,7 +419,7 @@ int main(int argc, char* argv[]) {
 	std::thread geditor_thread;
 
 
-	while(!root["exit"]->as<bool>().get()) {
+	do {
 		if(root["graphical assembler"]->as<std::string>().get() != "") {
 			if(gBackend == graphics_backend::undefined) {
 				gBackend = parse(root["graphical assembler"]->as<std::string>().get());
@@ -433,7 +441,7 @@ int main(int argc, char* argv[]) {
 			std::cerr << "Unknown failure occurred. Exiting the app" << std::endl;
 			break;
 		}
-	}
+	} while(!root["exit"]->as<bool>().get() && root["interactive-mode"]->as<bool>().get());
 	should_exit = true;
 	if(geditor_thread.joinable())
 		geditor_thread.join();

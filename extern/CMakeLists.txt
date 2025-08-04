@@ -8,6 +8,7 @@ set(ASSIMP_IGNORE_GIT_HASH ON)
 add_subdirectory(assimp)
 
 find_package(Python3)
+include(FetchContent)
 
 if(AS_ENABLE_WGSL)
     set(DAWN_FETCH_DEPENDENCIES ON)
@@ -57,7 +58,6 @@ if(AS_ENABLE_WGSL)
     # repo is now defunct, but the information was mostly which parts to enable/disable, and the fetch behaviour (since removed/refactored)
     # after chromium/5931 dawn started having issues with the cmake build and with build times, so we only
     # build the tint part of dawn, which is what we need for WGSL support.
-    include(FetchContent)
     FetchContent_Declare(
         dawn
         DOWNLOAD_COMMAND
@@ -74,6 +74,7 @@ if(AS_ENABLE_WGSL)
 
     message(STATUS "Dawn now available")
 endif()
+
 set(BUILD_TESTING OFF)
 set(ENABLE_GLSLANG_BINARIES ON) # todo: future versions will have glslang-default-resource-limits be integrated into glslang propper so we can then turn this off
                                 # see issue: https://github.com/KhronosGroup/glslang/issues/3064
@@ -86,26 +87,19 @@ set(ENABLE_NV_EXTENSIONS ON)
 set(ENABLE_OPT ON)
 set(ENABLE_RTTI ON)
 
-add_subdirectory(glslang)
+FetchContent_Declare(
+        glslang
+        DOWNLOAD_COMMAND
+		    cd ${FETCHCONTENT_BASE_DIR}/glslang-src &&
+		    git init &&
+		    git fetch --depth=1 https://github.com/KhronosGroup/glslang.git vulkan-sdk-1.4.321.0 &&
+		    git reset --hard FETCH_HEAD &&
+            ${Python3_EXECUTABLE} ${FETCHCONTENT_BASE_DIR}/glslang-src/update_glslang_sources.py
+        EXCLUDE_FROM_ALL
+    )
+FetchContent_MakeAvailable(glslang)
 
-# if this is the first time we are building glslang, we need to run `update_glslang_sources.py`
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/update_glslang_sources.py.timestamp
-    COMMAND ${CMAKE_COMMAND} -E echo "glslang dependencies changed" > ${CMAKE_CURRENT_BINARY_DIR}/update_glslang_sources.py.timestamp
-    COMMAND ${CMAKE_COMMAND} -E echo "Updating glslang sources..."
-    COMMAND ${Python3_EXECUTABLE} ${glslang_SOURCE_DIR}/update_glslang_sources.py
-    WORKING_DIRECTORY ${glslang_SOURCE_DIR}
-    DEPENDS ${glslang_SOURCE_DIR}/update_glslang_sources.py
-)
-
-add_custom_target(UpdateGlslangSources
-    DEPENDS update_glslang_sources.py.timestamp
-)
-
-add_dependencies(glslang
-    UpdateGlslangSources
-)
-
+set(SPIRV_CROSS_SKIP_INSTALL ON)
 add_subdirectory(SPIRV-Cross)
 
 set_target_properties(

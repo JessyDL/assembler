@@ -2,6 +2,8 @@
 
 #include "stdafx.h"
 #include <fstream>
+#include <fmt/ranges.h>
+#include <ranges>
 
 namespace assembler::importer {
 
@@ -14,7 +16,7 @@ auto delete_file_t::verify() -> bool {
 }
 
 auto delete_file_t::apply() -> bool {
-	assembler::log->info("Deleting file {}", path.string());
+	assembler::log->info("    Deleting file {}", path.string());
 	return std::filesystem::remove(path);
 }
 
@@ -27,7 +29,8 @@ auto copy_file_t::apply() -> bool {
 		std::filesystem::create_directories(to.parent_path());
 	}
 	std::filesystem::copy_file(from, to, std::filesystem::copy_options::overwrite_existing);
-	assembler::log->info("Copied file from {} to {}", from.string(), to.string());
+	std::filesystem::last_write_time(to, std::filesystem::last_write_time(from));
+	assembler::log->info("    Copied file from {} to {}", from.string(), to.string());
 	return true;
 }
 
@@ -36,13 +39,13 @@ auto move_file_t::verify() -> bool {
 }
 
 auto move_file_t::apply() -> bool {
-	assembler::log->info("Moving file from {} to {}", from.string(), to.string());
+	assembler::log->info("    Moving file from {} to {}", from.string(), to.string());
 	std::filesystem::rename(from, to);
 	return true;
 }
 
 auto write_file_t::apply() -> bool {
-	assembler::log->info("Writing file {}", path.string());
+	assembler::log->info("    Writing file {}", path.string());
 
 	if (!std::filesystem::exists(path.parent_path())) {
 		std::filesystem::create_directories(path.parent_path());
@@ -155,6 +158,9 @@ auto importer_t::import(std::filesystem::path const& file) -> bool {
 	if(importers.empty()) {
 		return true;
 	}
+
+	auto names = importers | std::views::transform([](auto const& obj) { return obj->name(); });
+	assembler::log->info("Importing file {} with {}", file.string(), names);
 	psl::array<std::unique_ptr<operation_t>> operations {};
 	// accumulate the results for all importer operations
 	for(auto const& importer : importers) {

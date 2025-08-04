@@ -8,7 +8,7 @@
 
 namespace assembler::data {
 class project_t;
-}	 // namespace assembler
+}	 // namespace assembler::data
 
 namespace assembler::generators {
 class project {
@@ -19,10 +19,24 @@ class project {
 	project() = default;
 
 	auto pack() -> psl::cli::pack {
-	  return psl::cli::pack {std::bind(&project::on_generate, this, std::placeholders::_1),
+		return psl::cli::pack {
+		  std::bind(&project::on_generate, this, std::placeholders::_1),
 		  cli_value<psl::string> {"input", "The project file to use", {"input", "i"}, "", false},
-		  cli_value<bool> {"models", "Explicitly set the importer to import models, disables other importers by default", {"models"}, false, true},
-		  cli_value<bool> {"shaders", "Explicitly set the importer to import shaders, disables other importers by default", {"shaders"}, false, true},
+		  cli_value<bool> {"audio",
+						   "Explicitly set the importer to import audio, disables other importers by default",
+						   {"audio"},
+						   false,
+						   true},
+		  cli_value<bool> {"models",
+						   "Explicitly set the importer to import models, disables other importers by default",
+						   {"models"},
+						   false,
+						   true},
+		  cli_value<bool> {"shaders",
+						   "Explicitly set the importer to import shaders, disables other importers by default",
+						   {"shaders"},
+						   false,
+						   true},
 		};
 	}
 

@@ -10,6 +10,7 @@ class project_t {
 
 	struct meta_mapping_t {
 		friend class psl::serialization::accessor;
+		friend class project_t;
 
 	  public:
 		struct extension {
@@ -80,6 +81,7 @@ class project_t {
 		}
 
 		psl::serialization::property<"MAPPING", psl::array<extension>> m_Mappings = std::initializer_list<extension> {
+		  {.meta = "AUDIO_META", .extensions = std::initializer_list<psl::string> {"wav", "mp3", "flac"}},
 		  {.meta = "TEXTURE_META", .extensions = std::initializer_list<psl::string> {"dds", "ktx"}},
 		  {.meta = "SHADER_META",
 		   .extensions =
@@ -95,7 +97,9 @@ class project_t {
   public:
 	static constexpr psl::string_view DEFAULT_EXTENSION = "ppf";
 	static constexpr psl::string_view DEFAULT_NAME		= "project";
+	static constexpr std::uint32_t CURRENT_VERSION		= 2;
 
+	auto is_latest_version() const noexcept { return m_Version.value == CURRENT_VERSION; }
 	auto version() const noexcept { return m_Version.value; }
 	auto const& project_directory() const noexcept { return m_ProjectDirectory; }
 	auto const& source_directory() const noexcept { return m_SourceDirectory.value; }
@@ -104,7 +108,6 @@ class project_t {
 	auto const& meta_mapping() const noexcept { return m_MetaMapping.value; }
 	auto const& graphics_backends() const noexcept { return m_GraphicsBackends.value; }
 
-	void version(std::uint32_t version) noexcept { m_Version.value = version; }
 	void source_directory(psl::string_view source_directory) noexcept { m_SourceDirectory.value = source_directory; }
 	void build_directory(psl::string_view build_directory) noexcept { m_BuildDirectory.value = build_directory; }
 	void library_path(psl::string_view library_path) noexcept { m_LibraryPath.value = library_path; }
@@ -116,15 +119,18 @@ class project_t {
 	/// \param[in] serializer the serialization object, consult the serialization namespace for more information.
 	template <typename S>
 	void serialize(S& serializer) {
-		serializer << m_Version << m_SourceDirectory << m_BuildDirectory << m_LibraryPath << m_MetaMapping
-				   << m_GraphicsBackends;
+		serializer << m_Version;
+		version_check();
+		serializer << m_SourceDirectory << m_BuildDirectory << m_LibraryPath << m_MetaMapping << m_GraphicsBackends;
 	};
+
+	void version_check() const noexcept;
 
 	/// \brief serialization name to be used by the serializer when writing and reading this container to and from
 	/// disk.
 	static constexpr psl::string8::view serialization_name {"PROJECT"};
 
-	psl::serialization::property<"VERSION", std::uint32_t> m_Version {1};
+	psl::serialization::property<"VERSION", std::uint32_t> m_Version {CURRENT_VERSION};
 	psl::serialization::property<"SOURCE_DIRECTORY", psl::string> m_SourceDirectory {"./source/"};
 	psl::serialization::property<"BUILD_DIRECTORY", psl::string> m_BuildDirectory {"./data/"};
 	psl::serialization::property<"META_LIBRARY", psl::string> m_LibraryPath {"./library/resources.metalib"};

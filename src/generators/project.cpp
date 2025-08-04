@@ -8,6 +8,7 @@
 
 #include "data/project.hpp"
 
+#include "importers/audio.hpp"
 #include "importers/importer.hpp"
 #include "importers/meta.hpp"
 #include "importers/model.hpp"
@@ -74,7 +75,7 @@ void project::generate_resource_library(std::filesystem::path path, assembler::d
 	if(false && std::filesystem::exists(path)) {
 		s.deserialize<psl::serialization::decode_from_format>(metalib, path.string());
 	}
-	
+
 	//// erase all entries that are not present in the files
 	//{
 	//	auto missing_entries_it = std::remove_if(
@@ -90,7 +91,7 @@ void project::generate_resource_library(std::filesystem::path path, assembler::d
 	//}
 
 	//// fix all entries who have moved
-	//std::for_each(std::begin(metalib.entries.value), std::end(metalib.entries.value), [&files](auto& entry) {
+	// std::for_each(std::begin(metalib.entries.value), std::end(metalib.entries.value), [&files](auto& entry) {
 	//	auto it = std::find_if(std::begin(files), std::end(files), [&entry](auto const& file) {
 	//		return file.uid == entry.id && (file.meta != entry.meta->path || file.data != entry.data->path);
 	//	});
@@ -107,7 +108,7 @@ void project::generate_resource_library(std::filesystem::path path, assembler::d
 	//		entry.meta->time = it->meta_time;
 	//		entry.data->time = it->data_time;
 	//	}
-	//});
+	// });
 	std::unordered_map<psl::string, psl::string> extension_to_environment {};
 	{
 		auto const& default_environments = project.meta_mapping().environments();
@@ -120,9 +121,10 @@ void project::generate_resource_library(std::filesystem::path path, assembler::d
 	// add all entries that are not present in the metalib
 	std::for_each(
 	  std::begin(files), std::end(files), [&metalib, &s, &metalib_dir, &extension_to_environment](auto const& file) {
-		  auto it = std::find_if(std::begin(metalib.entries.value),
-								 std::end(metalib.entries.value),
-								 [&file](auto const& entry) { return file.uid == entry.id && file.meta == entry.meta->path.value; });
+		  auto it = std::find_if(
+			std::begin(metalib.entries.value), std::end(metalib.entries.value), [&file](auto const& entry) {
+				return file.uid == entry.id && file.meta == entry.meta->path.value;
+			});
 		  if(it == std::end(metalib.entries.value)) {
 			  psl::format::container data {};
 			  auto meta = psl::meta::file();
@@ -150,13 +152,16 @@ void project::generate_resource_library(std::filesystem::path path, assembler::d
 		return;
 	}
 }
+
 void project::on_generate(psl::cli::pack& pack) {
 	auto projectFile	= pathstring {pack["input"]->as<psl::string>().get()}.platform();
 	auto only_models	= pack["models"]->as<bool>().get();
 	auto only_shaders	= pack["shaders"]->as<bool>().get();
-	auto import_models	= !only_shaders || only_models;
-	auto import_shaders = !only_models || only_shaders;
-	auto import_default = !(only_models || only_shaders);
+	auto only_audio		= pack["audio"]->as<bool>().get();
+	auto import_audio	= !(only_shaders && only_models) || only_audio;
+	auto import_models	= !(only_shaders && only_audio) || only_models;
+	auto import_shaders = !(only_models && only_audio) || only_shaders;
+	auto import_default = !(only_models || only_shaders || only_audio);
 
 	using assembler::data::project_t;
 
@@ -232,19 +237,35 @@ void project::on_generate(psl::cli::pack& pack) {
 
 	auto files = psl::utility::platform::directory::all_files(sourceDir.string(), true);
 
-	auto shaderFileTypes = project.meta_mapping().mapping("SHADER_META");
-	std::transform(std::begin(shaderFileTypes),
-				   std::end(shaderFileTypes),
-				   std::begin(shaderFileTypes),
-				   [](auto const& str) { return "." + str; });
-
-	auto run_importer = [&shaderFileTypes, &sourceDir, &buildDir, import_models, import_shaders, import_default](
+	auto run_importer = [&sourceDir, &buildDir, import_audio, import_models, import_shaders, import_default](
 						  assembler::data::project_t project, psl::array_view<psl::string> files) {
 		importer::importer_t importer {project};
+		if(!project.is_latest_version()) {
+			assembler::log->warn("The project is version {}, but expected is {}. Please consider updating it.",
+								 project.version(),
+								 project.CURRENT_VERSION);
+		}
 		importer.ignore_extension(".meta");
+
+		auto get_meta_file_extensions = [&project](psl::string_view meta) {
+			auto filetypes = project.meta_mapping().mapping(meta);
+			if(filetypes.empty()) {
+				assembler::log->warn("No file types found for meta type '{}'", meta);
+				throw std::runtime_error(
+				  "No file types found for meta type during importation, check logs for more info.");
+			}
+			std::transform(std::begin(filetypes), std::end(filetypes), std::begin(filetypes), [](auto const& str) {
+				return "." + str;
+			});
+			return filetypes;
+		};
+		if(import_audio && project.version() > 1) {
+			auto audio_importer = importer.register_importer<importer::audio_t>();
+			importer.map_extension(get_meta_file_extensions("AUDIO_META"), audio_importer);
+		}
 		if(import_shaders) {
 			auto shader_importer = importer.register_importer<importer::shader_t>();
-			importer.map_extension(shaderFileTypes, shader_importer);
+			importer.map_extension(get_meta_file_extensions("SHADER_META"), shader_importer);
 		}
 		if(import_models) {
 			auto model_importer = importer.register_importer<importer::model_t>();

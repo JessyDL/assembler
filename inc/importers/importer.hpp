@@ -89,6 +89,7 @@ class importer_base_t {
 	virtual ~importer_base_t()													= default;
 	virtual auto import(std::filesystem::path const& file) -> importer_result_t = 0;
 
+	virtual psl::string_view name() const noexcept = 0;
   protected:
 	auto project() const -> assembler::data::project_t const& { return m_Project.get(); }
 

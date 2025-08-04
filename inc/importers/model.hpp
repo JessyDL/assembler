@@ -29,6 +29,7 @@ class model_t : public importer_base_t {
 	model_t(options_t options = {}) : m_Options(options), importer_base_t() {}
 	auto import(std::filesystem::path const& file) -> importer_result_t override;
 
+	psl::string_view name() const noexcept override { return "Model Importer"; }
   private:
 	options_t m_Options;
 };

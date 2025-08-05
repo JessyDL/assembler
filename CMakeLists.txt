@@ -26,33 +26,43 @@ set(CMAKE_CXX_EXTENSIONS OFF )
 set(CXX_EXTENSIONS OFF )
 set(CMAKE_CXX_STANDARD 23)
 option(AS_DEVMODE "Enable this for slightly easier dev experience where the app doesn't auto-shut by default" OFF)
-option(AS_PARADIGM_EXTERNAL "Enable this if you are including this as a sub-project of paradigm" OFF)
+
+if(TARGET paradigm::core)
+  set(PARADIGM_AVAILABLE TRUE)
+else()
+  set(PARADIGM_AVAILABLE FALSE)
+endif()
+
+cmake_dependent_option(AS_PARADIGM_EXTERNAL "Enable this if you are including this as a sub-project of paradigm" ON "PARADIGM_AVAILABLE" OFF)
 cmake_dependent_option(AS_ENABLE_INSTALL "Enable installation "
     ON
     "CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR"
     OFF
 )
 
+add_subdirectory(extern)
+
 # -------------------------------------------------------------------------------------------------
 # Paradigm Engine setup
 # -------------------------------------------------------------------------------------------------
 
 if(NOT AS_PARADIGM_EXTERNAL)
-	# required call to get the paradigm engine core here, and setting up the compile defines
-	set(BUILD_SHARED_LIBS OFF)
 	set(PE_TESTS OFF CACHE INTERNAL "" FORCE)
 	set(PE_MAKE_EXE OFF)
+	set(PE_WEBGPU OFF)
+	set(PE_WEBGPU_NATIVE OFF)
+	set(PE_ASSEMBLER OFF) # circular dependency, do not enable
+	set(PE_INCLUDED_BY_ASSEMBLER ON) # triggers the right dawn setup, which paradigm will provide
 
 	FetchContent_Declare(paradigm
 		GIT_REPOSITORY https://github.com/JessyDL/paradigm.git
-		GIT_TAG e58ac8542b2e3d6c4de08b6aba3a78e665f7d93d
+		GIT_TAG e508201cff189a47c73cc1344dad5020ea2af3fa
 		GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE
 		GIT_SUBMODULES_RECURSE TRUE
 	)
 	FetchContent_MakeAvailable(paradigm)
 endif()
-add_subdirectory(extern)
 
 # -------------------------------------------------------------------------------------------------
 # Build binary
@@ -77,6 +87,9 @@ add_executable(${LOCAL_PROJECT} ${INC} ${SRC} ${GENERATOR_INFORMATION} ${NATVIS}
 
 if(${AS_ENABLE_INSTALL})
 	install(TARGETS ${LOCAL_PROJECT} RUNTIME DESTINATION bin)
+	if(BUILD_SHARED_LIBS)
+		install(TARGETS fmt assimp spdlog RUNTIME DESTINATION bin)
+	endif()
 endif()
 
 set_property(TARGET ${LOCAL_PROJECT} PROPERTY FOLDER "tools")
@@ -97,6 +110,20 @@ target_include_directories(${LOCAL_PROJECT}
 		${CMAKE_CURRENT_SOURCE_DIR}/inc
 )
 
+if(BUILD_SHARED_LIBS)
+	add_custom_command(TARGET ${LOCAL_PROJECT} POST_BUILD
+	  COMMAND echo "Copying dependencies to ${CMAKE_CURRENT_BINARY_DIR}"
+	  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			  $<TARGET_FILE:fmt>
+			  $<TARGET_FILE_DIR:${LOCAL_PROJECT}>
+	  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			  $<TARGET_FILE:assimp>
+			  $<TARGET_FILE_DIR:${LOCAL_PROJECT}>
+	  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			  $<TARGET_FILE:spdlog>
+			  $<TARGET_FILE_DIR:${LOCAL_PROJECT}>
+	)
+endif()
 
 execute_process(
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/.github/release.py --sha1

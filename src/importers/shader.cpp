@@ -96,7 +96,7 @@ auto shader_t::import(std::filesystem::path const& file) -> importer_result_t {
 											 auto const& compiled_result,
 											 psl::array<psl::string_view> extensions) {
 		psl::array<std::filesystem::path> meta_files {};
-		meta_files.emplace_back(file.replace_extension(file.extension().string() + "." + psl::meta::META_EXTENSION));
+		meta_files.emplace_back(file);
 		for(auto const& extension : extensions) {
 			meta_files.emplace_back(output_file.replace_extension(output_file.extension().string() + extension));
 		}

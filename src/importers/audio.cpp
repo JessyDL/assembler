@@ -57,6 +57,22 @@ auto audio_t::import(std::filesystem::path const& file) -> importer_result_t {
 	}
 	if(!meta) {
 		meta = std::make_unique<core::meta::audio_t>(psl::UID::generate());
+		meta->format([ext = std::filesystem::path {file}.extension()]() -> core::audio::format_t {
+			if(ext == ".wav") {
+				return core::audio::format_t::wav;
+			} else if(ext == ".mp3") {
+				return core::audio::format_t::mp3;
+			} else if(ext == ".ogg") {
+				return core::audio::format_t::vorbis;
+			} else if(ext == ".flac") {
+				return core::audio::format_t::flac;
+			} else if(ext == ".pcm") {
+				return core::audio::format_t::pcm;
+			} else {
+				assembler::log->error("Audio importer: Unsupported audio format: {}", ext.string());
+				return core::audio::format_t::unknown;
+			}
+		}());
 		psl::format::container cont;
 		psl::serialization::serializer s;
 		s.serialize<psl::serialization::encode_to_format>(meta.get(), cont);

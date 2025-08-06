@@ -1,6 +1,9 @@
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 set(CMAKE_CXX_CLANG_TIDY "")
 
+set(CACHED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+set(BUILD_SHARED_LIBS OFF)
+
 set(ASSIMP_BUILD_TESTS OFF)
 set(ASSIMP_INSTALL OFF)
 set(ASSIMP_INJECT_DEBUG_POSTFIX OFF)
@@ -10,8 +13,6 @@ add_subdirectory(assimp)
 find_package(Python3)
 include(FetchContent)
 
-set(CACHED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-set(BUILD_SHARED_LIBS OFF)
 
 if(${AS_ENABLE_WGSL} AND NOT TARGET tint_lang_wgsl_writer)
     set(DAWN_FETCH_DEPENDENCIES ON) # use manual method so we don't want to pull in depot_tools

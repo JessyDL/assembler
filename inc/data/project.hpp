@@ -104,13 +104,11 @@ class project_t {
 	auto const& project_directory() const noexcept { return m_ProjectDirectory; }
 	auto const& source_directory() const noexcept { return m_SourceDirectory.value; }
 	auto const& build_directory() const noexcept { return m_BuildDirectory.value; }
-	auto const& library_path() const noexcept { return m_LibraryPath.value; }
 	auto const& meta_mapping() const noexcept { return m_MetaMapping.value; }
 	auto const& graphics_backends() const noexcept { return m_GraphicsBackends.value; }
 
 	void source_directory(psl::string_view source_directory) noexcept { m_SourceDirectory.value = source_directory; }
 	void build_directory(psl::string_view build_directory) noexcept { m_BuildDirectory.value = build_directory; }
-	void library_path(psl::string_view library_path) noexcept { m_LibraryPath.value = library_path; }
 	void meta_mapping(meta_mapping_t meta_mapping) noexcept { m_MetaMapping.value = meta_mapping; }
 	void project_directory(psl::string_view project_directory) noexcept { m_ProjectDirectory = project_directory; }
 
@@ -121,7 +119,7 @@ class project_t {
 	void serialize(S& serializer) {
 		serializer << m_Version;
 		version_check();
-		serializer << m_SourceDirectory << m_BuildDirectory << m_LibraryPath << m_MetaMapping << m_GraphicsBackends;
+		serializer << m_SourceDirectory << m_BuildDirectory << m_MetaMapping << m_GraphicsBackends;
 	};
 
 	void version_check() const noexcept;
@@ -133,7 +131,6 @@ class project_t {
 	psl::serialization::property<"VERSION", std::uint32_t> m_Version {CURRENT_VERSION};
 	psl::serialization::property<"SOURCE_DIRECTORY", psl::string> m_SourceDirectory {"./source/"};
 	psl::serialization::property<"BUILD_DIRECTORY", psl::string> m_BuildDirectory {"./data/"};
-	psl::serialization::property<"META_LIBRARY", psl::string> m_LibraryPath {"./library/resources.metalib"};
 	psl::serialization::property<"META_MAPPING", meta_mapping_t> m_MetaMapping {};
 	psl::serialization::property<"GRAPHICS_BACKENDS", psl::array<psl::string>> m_GraphicsBackends =
 	  psl::array<psl::string> {{"vulkan", "gles"}};

@@ -22,6 +22,12 @@ class project {
 		return psl::cli::pack {
 		  std::bind(&project::on_generate, this, std::placeholders::_1),
 		  cli_value<psl::string> {"input", "The project file to use", {"input", "i"}, "", false},
+		  cli_value<psl::string> {
+			"output",
+			"The target output directory (defaults to the data directory where the project file is)",
+			{"output", "o"},
+			"",
+			true},
 		  cli_value<bool> {"audio",
 						   "Explicitly set the importer to import audio, disables other importers by default",
 						   {"audio"},

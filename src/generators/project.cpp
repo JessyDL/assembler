@@ -155,6 +155,7 @@ void project::generate_resource_library(std::filesystem::path path, assembler::d
 
 void project::on_generate(psl::cli::pack& pack) {
 	auto projectFile	= pathstring {pack["input"]->as<psl::string>().get()}.platform();
+	auto outputDir		= pathstring {pack["output"]->as<psl::string>().get()}.platform();
 	auto only_models	= pack["models"]->as<bool>().get();
 	auto only_shaders	= pack["shaders"]->as<bool>().get();
 	auto only_audio		= pack["audio"]->as<bool>().get();
@@ -217,13 +218,20 @@ void project::on_generate(psl::cli::pack& pack) {
 	}
 
 	project.project_directory(projectDir);
+	if(!outputDir.empty()) {
+		project.build_directory(outputDir);
+	}
 
 	assembler::log->info("Project file '{}' loaded", projectFile);
 
 	std::filesystem::path projectPath = projectDir;
 
 	std::filesystem::path sourceDir = (projectPath / project.source_directory()).lexically_normal();
-	std::filesystem::path buildDir	= (projectPath / project.build_directory()).lexically_normal();
+	std::filesystem::path buildDir	= std::filesystem::path {project.build_directory()}.lexically_normal();
+	if(buildDir.is_relative()) {
+		// If the build directory is relative, we need to resolve it against the project path
+		buildDir = (projectPath / buildDir).lexically_normal();
+	}
 
 	if(!std::filesystem::exists(sourceDir)) {
 		assembler::log->error("The source directory '{}' does not exist", sourceDir.string());
@@ -288,8 +296,7 @@ void project::on_generate(psl::cli::pack& pack) {
 	};
 
 	run_importer(project, files);
-	generate_resource_library(std::filesystem::path(projectDir) / std::filesystem::path(project.library_path()),
-							  project);
+	generate_resource_library(buildDir / "resources.metalib", project);
 	assembler::log->info("Project generation complete");
 }
 }	 // namespace assembler::generators

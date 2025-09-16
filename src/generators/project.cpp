@@ -262,9 +262,7 @@ void project::on_generate(psl::cli::pack& pack) {
 									   if(std::filesystem::exists(opath)) {
 										   auto input_time	= get_file_time(ipath);
 										   auto output_time = get_file_time(opath);
-										   if(output_time != input_time) {
-											   return true;
-										   }
+										   return output_time == input_time;
 									   }
 									   return false;
 								   }),

@@ -43,6 +43,10 @@ class project {
 						   {"shaders"},
 						   false,
 						   true},
+		  cli_value<bool> {"force",
+						   "Force re-import of all assets, even if the output file is newer than the source file",
+						   {"force", "f"},
+						   false},
 		};
 	}
 

@@ -16,6 +16,8 @@
 
 #include <future>
 
+#include <fstream>
+
 std::uint64_t get_file_time(std::filesystem::path const& path) {
 	return std::filesystem::last_write_time(path).time_since_epoch().count();
 }
@@ -163,6 +165,7 @@ void project::on_generate(psl::cli::pack& pack) {
 	auto import_models	= !(only_shaders && only_audio) || only_models;
 	auto import_shaders = !(only_models && only_audio) || only_shaders;
 	auto import_default = !(only_models || only_shaders || only_audio);
+	auto force_import	= pack["force"]->as<bool>().get();
 
 	using assembler::data::project_t;
 
@@ -245,6 +248,29 @@ void project::on_generate(psl::cli::pack& pack) {
 
 	auto files = psl::utility::platform::directory::all_files(sourceDir.string(), true);
 
+	// check the files that were found, compare to their versions in the output directory, if they exist and are newer,
+	// skip them
+	if(!force_import) {
+		files.erase(std::remove_if(std::begin(files),
+								   std::end(files),
+								   [&sourceDir, &buildDir](auto const& file) {
+									   auto ipath = std::filesystem::path(file);
+									   auto rel	  = std::filesystem::relative(ipath, sourceDir);
+									   auto opath = buildDir / ".assembler" / rel;
+									   // add .TIMESTAMP as extension to the output path
+									   opath += ".TIMESTAMP";
+									   if(std::filesystem::exists(opath)) {
+										   auto input_time	= get_file_time(ipath);
+										   auto output_time = get_file_time(opath);
+										   if(output_time != input_time) {
+											   return true;
+										   }
+									   }
+									   return false;
+								   }),
+					std::end(files));
+	}
+
 	auto run_importer = [&sourceDir, &buildDir, import_audio, import_models, import_shaders, import_default](
 						  assembler::data::project_t project, psl::array_view<psl::string> files) {
 		importer::importer_t importer {project};
@@ -287,16 +313,30 @@ void project::on_generate(psl::cli::pack& pack) {
 		for(auto const& file : files) {
 			auto ipath = std::filesystem::path(file);
 			auto rel   = std::filesystem::relative(ipath, sourceDir);
-			auto opath = buildDir / rel;
+			auto opath = buildDir / ".assembler" / rel;
+			opath += ".TIMESTAMP";
 
 			if(!importer.import(ipath)) {
 				assembler::log->error("Failed to import file '{}', inspect log for more details", file);
+			} else {
+				// make TIMESTAMP file in the output directory, and give it the timestamp of the input file
+				if(!std::filesystem::exists(opath.parent_path())) {
+					std::filesystem::create_directories(opath.parent_path());
+				}
+				std::ofstream timestamp {opath.string(), std::ios::out | std::ios::trunc};
+				timestamp.close();
+				auto time = std::filesystem::last_write_time(ipath);
+				std::filesystem::last_write_time(opath, time);
 			}
 		}
 	};
 
-	run_importer(project, files);
-	generate_resource_library(buildDir / "resources.metalib", project);
+	if(files.empty()) {
+		assembler::log->info("No files need to be imported, everything is up to date");
+	} else {
+		run_importer(project, files);
+		generate_resource_library(buildDir / "resources.metalib", project);
+	}
 	assembler::log->info("Project generation complete");
 }
 }	 // namespace assembler::generators

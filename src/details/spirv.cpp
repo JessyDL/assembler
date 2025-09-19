@@ -201,7 +201,7 @@ bool reflect_spirv(glsl_compile_result_t& result) {
 				if(member_type.array.size() > 0) {
 					stride = module.type_struct_member_array_stride(type, i);
 				} else if(member_type.columns > 1) {
-					stride = module.type_struct_member_matrix_stride(type, i);
+					stride = module.type_struct_member_matrix_stride(type, i) * member_type.columns;
 				} else {
 					// todo(jdl): we should support up-to 64-bit here, but for now we only support 32-bit
 					// which should be "good enough" for now. Luckily we will get a clear exception if we
@@ -212,7 +212,7 @@ bool reflect_spirv(glsl_compile_result_t& result) {
 				core::meta::shader::member member {};
 				member.name(member_name);
 				member.stride(stride);
-				member.count(member_type.array.size() > 0 ? member_type.array[0] : member_type.columns);
+				member.count(member_type.array.size() > 0 ? member_type.array[0] : 1);
 				member.offset(offset);
 
 				// if the member is a struct, we need to recursively decode it

@@ -193,7 +193,6 @@ handle<core::gfx::material_t> setup_gfx_material(resource::cache_t& cache,
 void ui_icon() {}
 
 #include "core/ecs/systems/fly.hpp"
-#include "core/ecs/systems/geometry_instance.hpp"
 
 #include "core/ecs/components/camera.hpp"
 #include "core/ecs/components/input_tag.hpp"
@@ -295,7 +294,6 @@ void launch_gassembler(graphics_backend backend) {
 	using namespace core::ecs::systems;
 	using namespace psl::ecs;
 	psl::ecs::state_t ECSState {};
-	geometry_instancing geometry_instancing_system {ECSState};
 	fly fly_system {ECSState, surface_handle->input()};
 
 	/* create editor camera */

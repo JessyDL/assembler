@@ -7,9 +7,9 @@
 #include "assimp/DefaultLogger.hpp"
 #include "assimp/Importer.hpp"
 #include "assimp/Logger.hpp"
-#include "assimp\cimport.h"
-#include "assimp\postprocess.h"
-#include "assimp\scene.h"
+#include "assimp/cimport.h"
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
 
 #ifdef DBG_NEW
 	#define new DBG_NEW

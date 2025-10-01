@@ -1,3 +1,9 @@
+#include <SPIRV/GlslangToSpv.h>
+#include <glslang/Include/glslang_c_interface.h>
+#include <glslang/Public/resource_limits_c.h>
+#include <spirv_glsl.hpp>
+#include <spirv_reflect.hpp>
+
 #include "details/spirv.hpp"
 #include "stdafx.h"
 
@@ -5,12 +11,6 @@
 #include "psl/array_view.hpp"
 #include "psl/string_utils.hpp"
 #include "psl/ustring.hpp"
-
-#include <SPIRV/GlslangToSpv.h>
-#include <glslang/Include/glslang_c_interface.h>
-#include <glslang/Public/resource_limits_c.h>
-#include <spirv_glsl.hpp>
-#include <spirv_reflect.hpp>
 tools::_internal::glslang_manager_t tools::_internal::glslang_manager {};
 
 template <typename TargetType>
@@ -239,12 +239,17 @@ bool reflect_spirv(glsl_compile_result_t& result) {
 		return descriptors;
 	};
 
+	// some compilers are missing an implementation for .append_range
+	auto append_range = [](auto& target, auto const& source) {
+		target.insert(std::end(target), std::begin(source), std::end(source));
+	};
+
 	auto descriptors = parse_descriptors(resources.uniform_buffers);
-	descriptors.append_range(parse_descriptors(resources.storage_buffers));
-	descriptors.append_range(parse_descriptors(resources.sampled_images));
-	descriptors.append_range(parse_descriptors(resources.separate_images));
-	descriptors.append_range(parse_descriptors(resources.separate_samplers));
-	descriptors.append_range(parse_descriptors(resources.storage_images));
+	append_range(descriptors, parse_descriptors(resources.storage_buffers));
+	append_range(descriptors, parse_descriptors(resources.sampled_images));
+	append_range(descriptors, parse_descriptors(resources.separate_images));
+	append_range(descriptors, parse_descriptors(resources.separate_samplers));
+	append_range(descriptors, parse_descriptors(resources.storage_images));
 	result.shader.descriptors = std::move(descriptors);
 
 	auto const& entries = module.get_entry_points_and_stages();

@@ -56,12 +56,13 @@ if(NOT AS_PARADIGM_EXTERNAL)
 
 	FetchContent_Declare(paradigm
 		GIT_REPOSITORY https://github.com/JessyDL/paradigm.git
-		GIT_TAG d93b0b33ea6a17a7822e2a5349287a771e740858
+		GIT_TAG 6ca48bdb443646119c4b2adc40b99d09aae688f8
 		GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE
 		GIT_SUBMODULES_RECURSE TRUE
 	)
 	FetchContent_MakeAvailable(paradigm)
+	include(${PE_CMAKE_DIR}/Utils.cmake)
 endif()
 
 # -------------------------------------------------------------------------------------------------
@@ -84,6 +85,7 @@ if(VS_ADD_NATIVE_VISUALIZERS)
 endif()
 
 add_executable(${LOCAL_PROJECT} ${INC} ${SRC} ${GENERATOR_INFORMATION} ${NATVIS})
+pe_copy_target_shared_objects(${LOCAL_PROJECT})
 
 if(${AS_ENABLE_INSTALL})
 	install(TARGETS ${LOCAL_PROJECT} RUNTIME DESTINATION bin)

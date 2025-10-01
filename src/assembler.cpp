@@ -301,7 +301,7 @@ void launch_gassembler(graphics_backend backend) {
 	  1,
 	  [](transform& value) {
 		  value			 = transform {};
-		  value.position = {40, 15, 150};
+		  value.position = psl::vec3 {40, 15, 150};
 		  value.rotation = psl::math::look_at_q(value.position, psl::vec3::zero, psl::vec3::up);
 	  },
 	  empty<camera> {},
@@ -343,8 +343,11 @@ core::gfx::graphics_backend parse(std::string const& value) {
 }
 
 int main(int argc, char* argv[]) {
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-	_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
+#if defined(AS_DEVMODE)
+	const auto default_interactive = true;
+#else
+	const auto default_interactive = false;
+#endif
 
 	core::initialize_loggers(false);
 
@@ -373,11 +376,6 @@ int main(int argc, char* argv[]) {
 	//_setmode(_fileno(stdout), _O_U8TEXT);
 #endif
 
-	assembler::log->info(
-	  "welcome to assembler, use -h or --help to get information on the commands.\nyou can also pass "
-	  "the specific command (or its chain) after --help to get more information of that specific "
-	  "command, such as '--help generate shader'.\n");
-
 	assembler::generators::shader shader_gen {};
 	assembler::generators::models model_gen {};
 	assembler::generators::meta meta_gen {};
@@ -390,12 +388,6 @@ int main(int argc, char* argv[]) {
 	  value<pack> {"meta", "meta file generator", {"meta", "m"}, meta_gen.meta_pack()},
 	  value<pack> {"project", "project file generator", {"project", "p"}, project_gen.pack()},
 	};
-
-#if defined(AS_DEVMODE)
-	const auto default_interactive = true;
-#else
-	const auto default_interactive = false;
-#endif
 
 	psl::cli::pack root {
 	  value<bool> {
@@ -415,6 +407,13 @@ int main(int argc, char* argv[]) {
 		}}}};
 
 	std::thread geditor_thread;
+
+	if(root["interactive-mode"]->as<bool>().get()) {
+		assembler::log->info(
+			"welcome to assembler interactive mode, use -h or --help to get information on the commands.\nyou can also pass "
+			"the specific command (or its chain) after --help to get more information of that specific "
+			"command, such as '--help generate shader'.\n");
+	}
 
 
 	do {

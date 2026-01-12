@@ -89,7 +89,6 @@ set(BUILD_SHARED_LIBS ${CACHED_BUILD_SHARED_LIBS})
 
 set_target_properties(
     assimp
-    UpdateAssimpLibsDebugSymbolsAndDLLs
     zlibstatic
     glslang
     GenericCodeGen
